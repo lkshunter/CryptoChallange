@@ -3,6 +3,7 @@
 #include <vector>
 #include <sstream>
 #include <NTL/mat_GF2.h>
+#include <algorithm>
 
 using namespace std;
 
@@ -212,7 +213,7 @@ vector<int> createClearVector(string clear, char c) {
  * */
 NTL::mat_GF2 createTriangleMatrix(vector<int> clear, vector<int> chi, int l) {
     NTL::mat_GF2 triangle;
-    triangle.SetDims((clear.size()/l), l*l);
+    triangle.SetDims((clear.size() / l), l * l);
     NTL::clear(triangle);
     int m, n = 0;
 
@@ -220,7 +221,7 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> clear, vector<int> chi, int l) {
     NTL::mat_GF2 mat;
     NTL::mat_GF2 erg;
 
-    vec.SetDims(l,1);
+    vec.SetDims(l, 1);
     mat.SetDims(1, l);
 
     for (int i = 0; i < clear.size(); i += l) {
@@ -228,16 +229,16 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> clear, vector<int> chi, int l) {
         NTL::clear(mat);
         NTL::clear(erg);
 
-        for (int j = i; j < (i+l); j++) {
-            vec[j-i][0] = clear.at(j);
-            mat[0][j-i] = chi.at(j);
+        for (int j = i; j < (i + l); j++) {
+            vec[j - i][0] = clear.at(j);
+            mat[0][j - i] = chi.at(j);
         }
         NTL::mul(erg, vec, mat);
 
         m = 0;
-        for (int a = 0 ; a < erg.NumRows(); a++) {
-            for (int b = 0 ; b < erg.NumCols(); b++) {
-                triangle[n][m] = erg.get(a,b);
+        for (int a = 0; a < erg.NumRows(); a++) {
+            for (int b = 0; b < erg.NumCols(); b++) {
+                triangle[n][m] = erg.get(a, b);
                 m++;
             }
         }
@@ -247,33 +248,11 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> clear, vector<int> chi, int l) {
 }
 
 /*
- * Erzeugt aus der Matrix eine Ausgabeform die für WolframAlpha geeignet ist
- * */
-void wolframAlphaExport(NTL::mat_GF2 m) {
-    printf("{");
-    for (int a = 0 ; a < m.NumRows(); a++) {
-        printf("{");
-        for (int b = 0 ; b < m.NumCols(); b++) {
-            if (b < (m.NumCols()-1)) {
-                printf("%d,", m.get(a,b));
-            } else {
-                printf("%d", m.get(a,b));
-            }
-        }
-        if (a < (m.NumRows()-1)) {
-            printf("},");
-        } else {
-            printf("}");
-        }
-    }
-    printf("}\n");
-}
-
-/*
  * Eurzeugt die spezielle Lösung für die Matrix
  * */
-NTL::mat_GF2 matrixAufrollen(NTL::mat_GF2 triMat) {
-    NTL::mat_GF2 spezLoes;
+vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
+    vector<NTL::mat_GF2> spezLoes;
+    NTL::mat_GF2 triMat = dummy;
     int rowMax = -1;
 
     int test = 0;
@@ -283,9 +262,8 @@ NTL::mat_GF2 matrixAufrollen(NTL::mat_GF2 triMat) {
             if (NTL::IsZero(triMat[i][j])) {
                 test++;
             }
-            printf("%d ", test);
             if (test == triMat.NumCols()) {
-                rowMax = i-1;
+                rowMax = i - 1;
                 break;
             }
         }
@@ -293,35 +271,220 @@ NTL::mat_GF2 matrixAufrollen(NTL::mat_GF2 triMat) {
         if (rowMax != -1) {
             break;
         }
-        printf("\n");
         test = 0;
+    }
+
+    if (rowMax == -1) {
+        rowMax = triMat.NumRows()-1;
     }
 
     if (!(NTL::IsZero(triMat))) {
         int col = triMat.NumCols();
 
-        vector<vector<int>> freeVar;
+        printf("\n");
 
-        for (int i = 0; i < rowMax; i++) {
-            for (int j = 0; j < col; j++) {
-                if (!(NTL::IsZero(triMat[i][j]))) {
-                    freeVar.push_back(vector<int> (i, j));
+        vector<int> expectedOne;
+        vector<int> freeVar;
+        vector<int> rowJump;
+        expectedOne.push_back(rowMax - 1);
+        expectedOne.push_back(col - 1);
+
+        for (int i = rowMax; i >= 0; i--) {
+            if (!(NTL::IsZero(triMat[i][expectedOne.at(1)]))) {
+                int check = 0;
+                int indexOfNull = -1;
+
+                for (int o = expectedOne.at(1) - 1; o >= 0; o--) {
+                    if (!(NTL::IsZero(triMat[i][o]))) {
+                        check++;
+                        indexOfNull = o;
+                    }
                 }
+
+                if (check != 0) {
+
+                    for (int x = expectedOne.at(1)-1; x > (indexOfNull - 1); x--) {
+                        freeVar.push_back(expectedOne.at(1));
+                        rowJump.push_back(i);
+                        expectedOne.at(1)--;
+                    }
+
+                    expectedOne.at(1) = indexOfNull - 1;
+                } else {
+                    expectedOne.at(1)--;
+                }
+
+            } else {
+                int indexOfNull = -1;
+
+                for (int o = expectedOne.at(1); o >= 0; o--) {
+                    if (!(NTL::IsZero(triMat[i][o]))) {
+                        indexOfNull = o;
+                    }
+                }
+
+                /*
+                freeVar.push_back(expectedOne.at(1));
+                rowJump.push_back(i);
+                 */
+
+                for (int x = expectedOne.at(1)-1; x > (indexOfNull - 1); x--) {
+                    freeVar.push_back(expectedOne.at(1));
+                    rowJump.push_back(i);
+                    expectedOne.at(1)--;
+                }
+
+                expectedOne.at(1) = indexOfNull - 1;
+
             }
+
         }
 
-        for (int i = rowMax; i == 0; i--) {
-            for (int j = col; j == 0; j--) {
-
-            }
+        cout << "Liste aller freien Variablen: " << endl;
+        for (int v = 0; v < freeVar.size(); v++) {
+            cout << "x_" << freeVar[v]+1 << endl;
         }
+        cout << endl;
 
+        for (int v = 0; v < freeVar.size(); v++) {
+            NTL::mat_GF2 vec;
+            vec.SetDims(triMat.NumCols(), 1);
+
+            vec[freeVar[v]][0] = 1;
+
+            //cout << "Es wurde x_" << freeVar[v] + 1  << " auf Eins gesetzt\n" << vec << "\n" << endl;
+
+            int index = triMat.NumCols() - 1;
+            for (int w = rowMax; w >= 0; w--) {
+                int test = 0;
+
+                for (int g = 0; g < rowJump.size(); g++) {
+                    if (w == rowJump[g]) {
+                        index--;
+                    }
+                }
+
+                for (int g = triMat.NumCols() - 1; g >= 0; g--) {
+                    if (!(NTL::IsZero(triMat[w][g]))) {
+                        if (!(NTL::IsZero(vec[g][0]))) {
+                            test += 1;
+                        }
+                    }
+                }
+
+                if ((test % 2) == 1) {
+                    vec[index][0] = 1;
+                }
+                index--;
+            }
+
+            spezLoes.push_back(vec);
+        }
     }
+
+    cout << "Liste aller Speziellen Lösungen: " << endl;
+    for (int v = 0; v < spezLoes.size(); v++) {
+        cout << spezLoes[v] << "\n" << endl;
+    }
+    cout << endl;
 
     return spezLoes;
 }
 
-void angriff(char pub[], string clear, char seperator) {
+NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> specialSolution, int breite, vector<int> chi) {
+    vector<NTL::mat_GF2> matrizen;
+
+    int offset = 0;
+    for (int i = 0; i < breite; i++) {
+
+        NTL::mat_GF2 mat;
+        mat.SetDims(specialSolution.size(), breite);
+
+        for (int n = 0; n < specialSolution.size(); n++) {
+            for (int o = 0; o < breite; o++) {
+                mat[n][o] = (specialSolution.at(n))[o + offset][0];
+            }
+        }
+
+        matrizen.push_back(mat);
+        offset += breite;
+        //cout << mat << endl;
+    }
+
+    vector<vector<vector<int>>> xyFormel;
+
+    for (int i = 0; i < specialSolution.size(); i++) {
+        vector<vector<int>> tmp2;
+        for (int n = 0; n < matrizen.size(); n++) {
+            for (int o = 0; o < breite; o++) {
+                if (!(NTL::IsZero((matrizen.at(n))[i][o]))) {
+                    vector<int> tmp;
+                    tmp.push_back(n+1);
+                    tmp.push_back(o);
+                    tmp2.push_back(tmp);
+                }
+            }
+        }
+        xyFormel.push_back(tmp2);
+    }
+
+    vector<vector<int>> lgsNachChi;
+
+    for (int i = 0; i < xyFormel.size(); i++) {
+        vector<int> tmp;
+
+        for (int n = 0; n < xyFormel.at(i).size(); n++) {
+            for (int o = 0; o < xyFormel.at(i).at(n).size()-1; o++) {
+                int t = 0;
+                t = xyFormel.at(i).at(n).at(0) * chi.at(xyFormel.at(i).at(n).at(1));
+                if (t > 0) {
+                    tmp.push_back(xyFormel.at(i).at(n).at(0));
+                }
+            }
+        }
+        lgsNachChi.push_back(tmp);
+
+    }
+
+
+    vector<vector<int>> result;
+
+    for (int i = 0; i < lgsNachChi.size(); i++) {
+        vector<int> tmp;
+        sort(lgsNachChi.at(i).begin(), lgsNachChi.at(i).end());
+
+        for(auto it = std::cbegin(lgsNachChi.at(i)); it != std::cend(lgsNachChi.at(i)); ) {
+
+            int dups = std::count(it, std::cend(lgsNachChi.at(i)), *it);
+            if ( (dups % 2) == 1 )
+                tmp.push_back(*it-1);
+            for(auto last = *it;*++it == last;);
+        }
+        result.push_back(tmp);
+    }
+
+    NTL::mat_GF2 ende;
+    ende.SetDims(lgsNachChi.size(), breite);
+
+    for (int i = 0; i < result.size(); i++) {
+        for (int n = 0; n < result.at(i).size(); n++) {
+            ende[i][result.at(i).at(n)] = 1;
+        }
+    }
+
+    //cout << ende << "\n" << endl;
+
+    NTL::gauss(ende);
+
+    cout << ende << "\n" << endl;
+
+    //printf("Test");
+
+    return ende;
+
+}
+
+void angriff(char pub[], string clear, char seperator, vector<int> doof) {
 
     /*
      * Erzeugt aus dem String den für die Berechnung benötigten Vector
@@ -345,97 +508,46 @@ void angriff(char pub[], string clear, char seperator) {
 
     cout << a << "\n" << endl;
 
-    matrixAufrollen(a);
+    vector<NTL::mat_GF2> specialSolution;
+    specialSolution = matrixAufrollen(a);
+
+
+    NTL::mat_GF2 b;
+    b = createBasis(specialSolution, publicK.size(), doof);
+
+    vector<NTL::mat_GF2> c;
+    c = matrixAufrollen(b);
+
+    cout << c.at(0) << "\n" << endl;
 
 }
 
 int main() {
 
     // Einlesen und aufbereiten des PublicKey
+
     char publicKey[] = "x_1*x_3 + x_2*x_3 + x_2,\n"
                        "    x_1*x_3 + x_1 + x_2 + x_3,\n"
                        "    x_1*x_2 + x_3";
 
-    vector<vector<vector<int>>> publicK;
-    publicK = createPublicKey(publicKey);
-
-    // printPublicKey(publicK);
-
+    /*
+    char publicKey[] = "x_1*x_3 + x_2*x_3 + x_1*x_5 + x_2*x_5 + x_3*x_5 + x_4*x_5 + x_1,\n"
+                       "    x_1*x_2 + x_1*x_3 + x_2*x_3 + x_3*x_4 + x_1*x_5 + x_4*x_5 + x_2 + x_3,\n"
+                       "    x_1*x_2 + x_1*x_3 + x_1*x_4 + x_2*x_4 + x_3*x_4 + x_1*x_5 + x_2*x_5 + x_1 + \n"
+                       "        x_2 + x_3,\n"
+                       "    x_1*x_3 + x_2*x_3 + x_2*x_4 + x_4*x_5 + x_2 + x_4,\n"
+                       "    x_1*x_2 + x_1*x_4 + x_3*x_4 + x_4*x_5 + x_1 + x_2 + x_5";
+    */
     // Einlesen und aufbereiten des Klartextes
     string clear = "0 1 1 0 0 0 1 0 1 1 0 0 0 0 1 0 1 0 1 1 0 1 1 1 1 0 1 0 1 1 1 0 0 0 1 0 1 0 1 0 1 1 1 1 1 0 0 0 0 0 1 0 1 0";
+    //string clear = "0 1 1 1 0 1 0 1 0 0 0 0 1 1 1 1 1 0 1 0 0 1 1 1 1 0 0 1 1 1 1 0 1 1 0 1 1 1 1 0 1 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 0 1 0 1 0 1 1 1 0 1 0 0 0 1 0 1 1 0 0 0 1 0 1 1 1 0 1 1 1 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 1 0 0 1 1 0 0 0 0 0 0 1 1 0 1 1 0 1 0 0 1 0 1 1 1 0 1 1 1 0 1 0 1 1 1 0 0 0 0 0 1 1 0 1 0 0 0 1 1 0 1 0 0 1 0 0 0 0 0 0 1 0 0 0 1 0 1 0 1 0 0 1 1 0 0 0 1 0 0 0 1 0 1 0 0 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 0 1 1 1 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 0 1 1 1 0 1 1 0 1 0 1 0 1 1 1 0 1 0 0 1 0 1 0 0 0 0 1 0 1 1 1";
 
-    angriff(publicKey, clear, ' ');
+    // zu entschlüsselnder Text
+    vector<int> chi = {1,1,1};
+    //vector<int> chi = {1,0,0,0,1};
 
-    /*
-    NTL::mat_GF2 test1;
-    test1.SetDims(7,9);
+    angriff(publicKey, clear, ' ', chi);
 
-    test1[0][0] = 1;
-    test1[1][1] = 1;
-    test1[2][2] = 1;
-    test1[3][3] = 1;
-    test1[4][4] = 1;
-    test1[5][5] = 1;
-    test1[6][7] = 1;
-
-    test1[0][8] = 1;
-
-    test1[2][6] = 1;
-    test1[2][8] = 1;
-
-    test1[3][6] = 1;
-    test1[3][8] = 1;
-
-    test1[4][6] = 1;
-    test1[4][8] = 1;
-
-    test1[5][8] = 1;
-
-    test1[6][8] = 1;
-
-    cout << test1 << "\n" << endl;
-
-    NTL::mat_GF2 test21;
-    test21.SetDims(9,1);
-
-    test21[0][0] = 1;
-    test21[1][0] = 0;
-    test21[2][0] = 0;
-    test21[3][0] = 0;
-    test21[4][0] = 0;
-    test21[5][0] = 1;
-    test21[6][0] = 1;
-    test21[7][0] = 1;
-    test21[8][0] = 1;
-
-    cout << test21 << "\n" << endl;
-
-    NTL::mat_GF2 test22;
-    test22.SetDims(9,1);
-
-    test22[0][0] = 1;
-    test22[1][0] = 0;
-    test22[2][0] = 0;
-    test22[3][0] = 0;
-    test22[4][0] = 0;
-    test22[5][0] = 1;
-    test22[6][0] = 1;
-    test22[7][0] = 1;
-    test22[8][0] = 1;
-
-    cout << test22 << "\n" << endl;
-
-    NTL::mat_GF2 test23;
-
-    NTL::add(test23, test21, test22);
-
-    NTL::mat_GF2 test3;
-
-    NTL::mul(test3, test1, test23);
-
-    cout << test3 << "\n" << endl;
-    cout << NTL::IsZero(test3) << "\n" << endl;
-    */
 
     return 0;
 }
