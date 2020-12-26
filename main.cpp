@@ -348,6 +348,7 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
  * Errechnet aus einer Gauß Matrix die speziellen Lösungen aller freien Variablen
  *
  * todo: Muss verbessert werden
+ * todo: Kommentieren
  * */
 vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 &gaussMatrix) {
     vector<NTL::mat_GF2> spezLoes;
@@ -522,6 +523,8 @@ vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 &gaussMatrix) {
 
 /*
  * Erzeugt aus eiem Vekor mit speziellen Lösungen eine Basis
+ *
+ * todo: Kommentieren
  * */
 NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> specialSolution, int breite, vector<int> chi) {
     vector<NTL::mat_GF2> matrizen;
@@ -614,6 +617,8 @@ NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> specialSolution, int breite, vecto
 
 /*
  * Steuert den Angriff und vereint die verschiedenen Methoden
+ *
+ * todo: Kommentieren
  * */
 bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<int> &chi) {
 
@@ -715,6 +720,8 @@ void angriffD3() {
 
 /*
  * Führt einen Angriff mit den Crypto Challenge Vorgaben aus dem Moodle Kurs durch.
+ *
+ * todo: Kommentieren
  * */
 void angriffGruppeN(int gruppe, int mode) {
 
@@ -757,6 +764,8 @@ void angriffGruppeN(int gruppe, int mode) {
 
 /*
  * Führt einen Angriff auf einen beliebigen Public Key und Chitext, aus einer entsprechend formatierten Datei, aus
+ *
+ * todo: Kommentieren
  * */
 bool angriffDatei(string file, int mode) {
 
@@ -851,6 +860,10 @@ void generateRandomChallange(int dimension) {
 int main() {
     srand(time(0));
 
+    /*
+     * Bei Problemen unter Linux bitte die readme.md lesen
+     * */
+
     // Start der Zeitmessung
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
 
@@ -876,9 +889,9 @@ int main() {
     //angriffDatei("BeispielAngriffd7.txt", mode);
 
     /*
-     * Exemplarisch ist hier einer der Beispiel Angriffe hardgecoded
+     * Exemplarisch ist hier einer der Beispielangriffe hardgecoded
      *
-     * Kein mode da der Klar text vorgegeben war
+     * Kein mode da der Klartext vorgegeben war im Beispiel
      * */
     //angriffD3();
 
