@@ -9,14 +9,33 @@
 
 using namespace std;
 
+/* -----------------------------------
+ * Helfer-Methoden für den Angriff
+ * -----------------------------------
+ * */
+
 /*
- * Entfernt einen bestimten Char aus einem char Pointer
+ * Entfernt alle definierten character aus einem String
  * */
 void removeChar(string &str, char elements[]) {
-
     for (unsigned int i = 0; i < strlen(elements); ++i) {
         str.erase(std::remove(str.begin(), str.end(), elements[i]), str.end());
     }
+}
+
+/*
+ * Erzeugt aus einem String eine Vector mit dem Klartext
+ * */
+vector<int> createVector(string clear, char c) {
+    vector<int> out;
+    stringstream test(clear);
+    string segment;
+
+    while (getline(test, segment, c)) {
+        out.push_back(stoi(segment));
+    }
+
+    return out;
 }
 
 /*
@@ -81,6 +100,7 @@ vector<vector<vector<int>>> createPublicKey(string &pKey) {
         string segment;
         vector<string> temp;
 
+        // Getrennt wird ab jedem '+'
         while (getline(test1, segment, '+')) {
             temp.push_back(segment);
         }
@@ -89,10 +109,12 @@ vector<vector<vector<int>>> createPublicKey(string &pKey) {
     }
 
     /*
-     * Die Summanden können aus einer Multiplikation bestehen
-     * Für den Fall wird sie aufgeteilt
+     * Die Summanden der Formel können ein einzelnes x sein oder eine Multiplikation aus zwei x
+     *  - In dem Fall einer Multiplikation wird diese in die einzelnen Multipikaten aufgeteilt
      *
-     * Ob eine Multiplikation oder nur ein Summand sie werden in einem Vector angelegt
+     * Ob nun eine Multiplikation oder nur ein Summand vorliegt ist egal sie werden in einem Vector angelegt
+     *  - Die Ziffern werden wenn vorhanden an einem '*' aufgeteilt
+     *  - Die Ziffern werden in einen Integer gewandelt
      * */
     vector<vector<vector<int>>> key;
     for (int i = 0; i < list.size(); i++) {
@@ -106,33 +128,119 @@ vector<vector<vector<int>>> createPublicKey(string &pKey) {
             while (getline(test2, segment, '*')) {
                 temp1.push_back(stoi(segment));
             }
-
             temp2.push_back(temp1);
         }
-
         key.push_back(temp2);
     }
-
     return key;
 }
 
 /*
- * Verschlüsselt einen Klartext mit einem belibigen publicKey
+ * Erzeugt für eine bestimmt Matrixbreite ausreichend zufälligen Klartext
  * */
-vector<int> encrypt(vector<int> clear, vector<vector<vector<int>>> pKey) {
-    vector<int> chi;
-    int cipher, offset = 0;
+vector<int> generateRandomClear(int Range, int mode) {
+    vector<int> ran;
+    int max = 0;
 
-    for (int o = 0; o < clear.size(); o += pKey.size()) {
+    switch (mode) {
+        case 1:
+            cout << Range << " = " << Range * (Range * Range) << endl;
+            max = Range * (Range * Range);
+
+            for (int i = 0; i < max; i++) {
+                ran.push_back(rand() % 2);
+            }
+            break;
+        case 2:
+            for (int i = 0; i < Range; i++) {
+                ran.push_back(rand() % 2);
+            }
+            break;
+        default:
+            cout << Range << " = " << (2 * pow(Range, Range)) * Range << endl;
+            max = (2 * pow(Range, 2)) * Range;
+
+            for (int i = 0; i < max; i++) {
+                ran.push_back(rand() % 2);
+            }
+            break;
+    }
+
+    return ran;
+}
+
+/*
+ * Ließt eine Datei ein und gibt den Public Ke und den Chitext als string zurück
+ * */
+vector<string> readChallengeIn(string filename) {
+    // Linux
+    ifstream t("/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+
+    // Windows
+    //ifstream t("C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
 
 
-        if (o != 0) {
-            offset = o;
+    std::string str;
+
+    if (!t.eof()) {
+        ostringstream ss;
+        ss << t.rdbuf(); // reading data
+        str = ss.str();
+    }
+
+    char chars[] = "\n x_\t";
+
+    for (unsigned int i = 0; i < strlen(chars); ++i) {
+        str.erase(std::remove(str.begin(), str.end(), chars[i]), str.end());
+    }
+
+    stringstream test(str);
+    string segment;
+    vector<string> seglist;
+
+    while (getline(test, segment, '[')) {
+        seglist.push_back(segment);
+    }
+
+    vector<string> tmp;
+    for (int i = 1; i < seglist.size(); i++) {
+        stringstream test1(seglist.at(i));
+        string segment1;
+        while (getline(test1, segment1, ']')) {
+            tmp.push_back(segment1);
         }
 
-        // Geht jede Funktion nacheinander durch
+    }
+
+    vector<string> result;
+    result.push_back(tmp.at(0));
+    result.push_back(tmp.at(2));
+
+    return result;
+}
+
+/*
+ * -----------------------------------------------
+ * Methoden die essenziell für den Angriff sind
+ * -----------------------------------------------
+ * */
+
+/*
+ * Verschlüsselt einen Klartext mit einem Public Key
+ * */
+vector<int> encrypt(vector<int> &clear, vector<vector<vector<int>>> &pKey) {
+    vector<int> chi;
+    int cipher = 0;
+
+    /*
+     * Geht den gesamten Klartext durch und springt durch die Breite des Public Key weiter
+     * */
+    for (int o = 0; o < clear.size(); o += pKey.size()) {
+
+        /*
+         * Geht jede Funktion nacheinander durch
+         * */
         for (int i = 0; i < pKey.size(); i++) {
-            vector<vector<int>> funktion = pKey.at(i);
             cipher = 0;
 
             /*
@@ -140,8 +248,8 @@ vector<int> encrypt(vector<int> clear, vector<vector<vector<int>>> pKey) {
              *
              * Beispiel x_2 * x_4
              * */
-            for (int j = 0; j < funktion.size(); j++) {
-                vector<int> teilFunktion = funktion.at(j);
+            for (int j = 0; j < pKey.at(i).size(); j++) {
+                vector<int> teilFunktion = pKey.at(i).at(j);
 
                 /*
                  * Da nicht jeder Teil der Funktion aus zwei Operanden besteht muss daruf geprüft werden
@@ -149,11 +257,10 @@ vector<int> encrypt(vector<int> clear, vector<vector<vector<int>>> pKey) {
                  * Beispiel x_2 * x_4 oder x_3
                  * */
                 if (teilFunktion.size() == 2) {
-                    cipher += clear.at(offset + teilFunktion.at(0) - 1) * clear.at(offset + teilFunktion.at(1) - 1);
+                    cipher += clear.at(o + teilFunktion.at(0) - 1) * clear.at(o + teilFunktion.at(1) - 1);
                 } else if (teilFunktion.size() == 1) {
-                    cipher += clear.at(offset + teilFunktion.at(0) - 1);
+                    cipher += clear.at(o + teilFunktion.at(0) - 1);
                 }
-
             }
 
             /*
@@ -168,21 +275,6 @@ vector<int> encrypt(vector<int> clear, vector<vector<vector<int>>> pKey) {
 }
 
 /*
- * Erzeugt aus einem String eine Vector mit dem Klartext
- * */
-vector<int> createVector(string clear, char c) {
-    vector<int> out;
-    stringstream test(clear);
-    string segment;
-
-    while (getline(test, segment, c)) {
-        out.push_back(stoi(segment));
-    }
-
-    return out;
-}
-
-/*
  * Erzeugt aus dem Klar-Geheim Kompromiss die Stufenmatrix
  * */
 NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
@@ -193,7 +285,10 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
     int m, n = 0;
 
     /*
-     * Definieren der benötigten Matrizen
+     * Definieren der benötigten Matrizen/ den Vector
+     *
+     * Auch wenn der Klartext als Vektor zu versteh ist wird er als Datentyp Matrix_GF2 definiert
+     * Programmiertechnich macht es keine Unterschied ob es sich um eine Matrix oder einen Vektor handelt
      * */
     NTL::mat_GF2 vec; // Klartext Spalten: 1, Zeilen: l
     NTL::mat_GF2 mat; // Chitext Splaten: l, Zeilen: 1
@@ -206,19 +301,19 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
      * */
     for (int i = 0; i < clear.size(); i += l) {
 
-        // Leeren der Matrizen
+        // Setzt alle Felder auf 0
         NTL::clear(vec);
         NTL::clear(mat);
         NTL::clear(erg);
 
-        // Füllen der Matrizen
+        // Füllen der Matrix und des Vectors
         for (int j = i; j < (i + l); j++) {
             vec[j - i][0] = clear.at(j);
             mat[0][j - i] = chi.at(j);
         }
 
         /*
-         * Multiplikation
+         * Multiplikation von Matrix und Vector zum erzeugen des Klar-Geheim Kompromisses
          *
          * Ergebniss in
          * */
@@ -236,6 +331,12 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
 
     cout << triangle << "\n" << endl;
 
+    /*
+     * Der Gauß Algorithmus ist von der Bibliothek NTL implementiert
+     *
+     * Im Gegensatz zu dem Beispielangriffen ist hier nicht die "reduced row echolon" version verwendet
+     * Der Unterschied ist das über der Stufenform mehr einsen stehen können
+     * */
     NTL::gauss(triangle);
 
     cout << triangle << "\n" << endl;
@@ -244,21 +345,28 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
 }
 
 /*
- * Eurzeugt die spezielle Lösung für die Matrix
+ * Errechnet aus einer Gauß Matrix die speziellen Lösungen aller freien Variablen
+ *
+ * todo: Muss verbessert werden
  * */
-vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
+vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 &gaussMatrix) {
     vector<NTL::mat_GF2> spezLoes;
-    NTL::mat_GF2 triMat = dummy;
+
+    /*
+     * Die Schleife findet die letzte Zeile die nicht nur aus Nullen besteht
+     *
+     * todo: Extrem doof geschrieben und Laufzeit intensiv. Muss ersetzt werden durch eine Errechnung des Grades der Matrix. Und das mit den breaks ist auch übel Kacke
+     *  - Wenn Zeit ist
+     * */
     int rowMax = -1;
-
     int test = 0;
-    for (int i = 0; i < triMat.NumRows(); i++) {
+    for (int i = 0; i < gaussMatrix.NumRows(); i++) {
 
-        for (int j = 0; j < triMat.NumCols(); j++) {
-            if (NTL::IsZero(triMat[i][j])) {
+        for (int j = 0; j < gaussMatrix.NumCols(); j++) {
+            if (NTL::IsZero(gaussMatrix[i][j])) {
                 test++;
             }
-            if (test == triMat.NumCols()) {
+            if (test == gaussMatrix.NumCols()) {
                 rowMax = i - 1;
                 break;
             }
@@ -269,29 +377,46 @@ vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
         }
         test = 0;
     }
-
+    // Als oben was schiefgelaufen ist oder die Matrix keine freie Variabel hat
     if (rowMax == -1) {
-        rowMax = triMat.NumRows() - 1;
+        rowMax = gaussMatrix.NumRows() - 1;
     }
 
-    if (!(NTL::IsZero(triMat))) {
-        int col = triMat.NumCols();
-
-        printf("\n");
-
+    /*
+     * Findet und speichert alle freien Variabeln
+     * */
+    if (!(NTL::IsZero(gaussMatrix))) {
+        // Speichert die Zeile und Spalter an der die nächste Eins der Stufen Form vermutet wird
         vector<int> expectedOne;
-        vector<int> freeVar;
-        vector<int> rowJump;
-        expectedOne.push_back(rowMax - 1);
-        expectedOne.push_back(col - 1);
 
+        // Speichert Welche freien Variabeln gefunden wurden
+        vector<int> freeVar;
+        // Speichert in welcher Zeile eine oder Mehrere freie Variabeln gefunden wurden
+        vector<int> rowJump;
+
+        // Die erste 1 wird immer in der lezten Zeile (in der EInsen vorkommen) ganz rechts vermutet
+        expectedOne.push_back(rowMax - 1);
+        expectedOne.push_back(gaussMatrix.NumCols() - 1);
+
+        /*
+         * Die Matrix wird von unten rechts bis oben links durchgegangen
+         *
+         * todo: Aufwendige Schleifendurchläufe vermeiden
+         * */
         for (int i = rowMax; i >= 0; i--) {
-            if (!(NTL::IsZero(triMat[i][expectedOne.at(1)]))) {
+
+            /*
+             * Wenn an der vermuteten Stelle eine Eins gefunden wurde
+             * */
+            if (!(NTL::IsZero(gaussMatrix[i][expectedOne.at(1)]))) {
                 int check = 0;
                 int indexOfNull = -1;
 
+                /*
+                 *
+                 * */
                 for (int o = expectedOne.at(1) - 1; o >= 0; o--) {
-                    if (!(NTL::IsZero(triMat[i][o]))) {
+                    if (!(NTL::IsZero(gaussMatrix[i][o]))) {
                         check++;
                         indexOfNull = o;
                     }
@@ -314,7 +439,7 @@ vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
                 int indexOfNull = -1;
 
                 for (int o = expectedOne.at(1); o >= 0; o--) {
-                    if (!(NTL::IsZero(triMat[i][o]))) {
+                    if (!(NTL::IsZero(gaussMatrix[i][o]))) {
                         indexOfNull = o;
                     }
                 }
@@ -331,43 +456,62 @@ vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
 
         }
 
+        /*
+         * Schreibt alle freien Variabeln auf die Konsole aus
+         * */
         cout << "Liste aller freien Variablen: " << endl;
         for (int v = 0; v < freeVar.size(); v++) {
             cout << "x_" << freeVar[v] + 1 << endl;
         }
         cout << endl;
 
+        /*
+         * Erzeugt alle speziellen Lösungen für die freien Variabeln
+         * */
         cout << "Liste aller Speziellen Lösungen: " << endl;
         for (int v = 0; v < freeVar.size(); v++) {
+            // Lösungsvektor
             NTL::mat_GF2 vec;
-            vec.SetDims(triMat.NumCols(), 1);
+            vec.SetDims(gaussMatrix.NumCols(), 1);
 
+            // Setzt die freie Variabel auf 1
             vec[freeVar[v]][0] = 1;
 
-            int index = triMat.NumCols() - 1;
+            /*
+             * Geht die Matrix ab der letzt Zeile mit Einsen von unten nach oben durch
+             * */
+            int index = gaussMatrix.NumCols() - 1;
             for (int w = rowMax; w >= 0; w--) {
                 int test = 0;
 
+                /*
+                 * Wenn eine oder mehrere freie Variabelen in einer Zeile gefunden wurden muss der muss der Index im Lösungsvekor weiter springen
+                 * */
                 for (int g = 0; g < rowJump.size(); g++) {
                     if (w == rowJump[g]) {
                         index--;
                     }
                 }
 
-                for (int g = triMat.NumCols() - 1; g >= 0; g--) {
-                    if (!(NTL::IsZero(triMat[w][g]))) {
+                /*
+                 * Rechnet die Zeile zusammen
+                 * */
+                for (int g = gaussMatrix.NumCols() - 1; g >= 0; g--) {
+                    if (!(NTL::IsZero(gaussMatrix[w][g]))) {
                         if (!(NTL::IsZero(vec[g][0]))) {
                             test += 1;
                         }
                     }
                 }
 
+                // Je nach ergebnis der Zeile muss der Wert im Lösungsvektor auf 1 gesetzt werden
                 if ((test % 2) == 1) {
                     vec[index][0] = 1;
                 }
                 index--;
             }
 
+            // Speichert die Lösung und gibt sie aus
             spezLoes.push_back(vec);
             cout << vec << "\n" << endl;
         }
@@ -376,6 +520,9 @@ vector<NTL::mat_GF2> matrixAufrollen(NTL::mat_GF2 dummy) {
     return spezLoes;
 }
 
+/*
+ * Erzeugt aus eiem Vekor mit speziellen Lösungen eine Basis
+ * */
 NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> specialSolution, int breite, vector<int> chi) {
     vector<NTL::mat_GF2> matrizen;
 
@@ -465,7 +612,10 @@ NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> specialSolution, int breite, vecto
 
 }
 
-void angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<int> &chi) {
+/*
+ * Steuert den Angriff und vereint die verschiedenen Methoden
+ * */
+bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<int> &chi) {
 
     /*
      * Erzeugt aus dem String den für die Berechnung benötigten Vector
@@ -481,11 +631,22 @@ void angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<in
     vector<NTL::mat_GF2> specialSolution;
     specialSolution = matrixAufrollen(a);
 
+    if (specialSolution.size() == 0) {
+        cout << "Der Key hat einen defekt" << endl;
+        return false;
+    }
+
     NTL::mat_GF2 b;
     b = createBasis(specialSolution, publicK.size(), chi);
 
     vector<NTL::mat_GF2> c;
     c = matrixAufrollen(b);
+
+    if (c.size() == 0 || c.size() > 1) {
+        cout << "Es gibt keine Freie variabel in der speziellen Lösung der Basis" << endl;
+        return false;
+    }
+
     vector<int> loesung;
     for (int i = 0; i < c.at(0).NumRows(); i++) {
         if (!(NTL::IsZero(c.at(0).get(i, 0)))) {
@@ -508,8 +669,11 @@ void angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<in
     }
     cout << endl;
 
+    bool success = false;
+
     if (probe == chi) {
         cout << "Probe bestanden" << endl;
+        success = true;
     } else {
         cout << "Probe nicht bestanden" << endl;
     }
@@ -519,24 +683,19 @@ void angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<in
         cout << c.at(0)[i][0] << " ";
     }
     cout << endl;
+
+    return success;
 }
 
 /*
- * Erzeugt für eine bestimmt Matrixbreite ausreichend zufälligen Klartext
+ * -----------------------------------------
+ * Verschiedene Methoden die einen Angriff auslösen: dynamische, vorgegebene und hardgecodede
+ * -----------------------------------------
  * */
-vector<int> generateRandomClear(int Range) {
-    cout << Range << " = " << (2 * pow(Range, Range)) * Range << endl;
-    int bound = (2 * pow(Range, 2)) * Range;
-    vector<int> ran;
 
-
-    for (int i = 0; i < bound; i++) {
-        ran.push_back(rand() % 2);
-    }
-
-    return ran;
-}
-
+/*
+ * Hardgecodeter Beispielangriff d3
+ * */
 void angriffD3() {
     string publicKey = "x_1*x_3 + x_2*x_3 + x_2,\n"
                        "    x_1*x_3 + x_1 + x_2 + x_3,\n"
@@ -554,117 +713,186 @@ void angriffD3() {
     angriff(publicK, klartext, chi);
 }
 
-vector<string> readChallengeIn(string filename) {
-    // Linux
-    //ifstream t("/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+/*
+ * Führt einen Angriff mit den Crypto Challenge Vorgaben aus dem Moodle Kurs durch.
+ * */
+void angriffGruppeN(int gruppe, int mode) {
 
-    // Windows
-    ifstream t("C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+    if (gruppe > 0 && gruppe <= 14) {
 
+        string file = "kryptochallengegruppe";
+        file += to_string(gruppe);
+        file += ".txt";
 
-    std::string str;
+        chrono::steady_clock::time_point start = chrono::steady_clock::now();
 
-    if (!t.eof()) {
-        ostringstream ss;
-        ss << t.rdbuf(); // reading data
-        str = ss.str();
-    }
+        vector<string> input = readChallengeIn(file);
 
-    char chars[] = "\n x_\t";
+        chrono::steady_clock::time_point end = chrono::steady_clock::now();
+        long misec = chrono::duration_cast<chrono::microseconds>(end - start).count();
 
-    for (unsigned int i = 0; i < strlen(chars); ++i) {
-        str.erase(std::remove(str.begin(), str.end(), chars[i]), str.end());
-    }
+        std::cout << misec / 1000 << ":" << misec % 1000 << " [ms:μm]\n" << endl;
 
-    stringstream test(str);
-    string segment;
-    vector<string> seglist;
+        vector<vector<vector<int>>> publicK = createPublicKey(input.at(0));
 
-    while (getline(test, segment, '[')) {
-        seglist.push_back(segment);
-    }
-
-    vector<string> tmp;
-    for (int i = 1; i < seglist.size(); i++) {
-        stringstream test1(seglist.at(i));
-        string segment1;
-        while (getline(test1, segment1, ']')) {
-            tmp.push_back(segment1);
+        if (mode == 1) {
+            cout << "Es wurde der Performance Modus eingestellt." << endl;
+            cout << "Der Klar-Geheim Kompromiss liegt unter 2*n^2 es kann sein das kein Ergebniss gefunden wird."
+                 << endl;
+            cout << "" << endl;
+        } else {
+            cout << "Der Klar-Geheim Kompromiss wird mit 2*n^2 durchgeführt." << endl;
         }
 
+        vector<int> clear = generateRandomClear(publicK.size(), mode);
+        vector<int> chi = createVector(input.at(1), ',');
+
+        angriff(publicK, clear, chi);
+
+    } else {
+        cout << "Ein Angriff für die Gruppe " << gruppe
+             << " existiert nicht.\n Bitte wähle eine Zahl im bereich von einschließlich 1 bis 14" << endl;
+    }
+}
+
+/*
+ * Führt einen Angriff auf einen beliebigen Public Key und Chitext, aus einer entsprechend formatierten Datei, aus
+ * */
+bool angriffDatei(string file, int mode) {
+
+    chrono::steady_clock::time_point start = chrono::steady_clock::now();
+
+    vector<string> input = readChallengeIn(file);
+
+    chrono::steady_clock::time_point end = chrono::steady_clock::now();
+    long misec = chrono::duration_cast<chrono::microseconds>(end - start).count();
+
+    std::cout << misec / 1000 << ":" << misec % 1000 << " [ms:μm]\n" << endl;
+
+    if (mode == 1) {
+        cout
+                << "Es wurde der Performance Modus eingestellt.\nDer Klar-Geheim Kompromiss liegt unter 2*n^2.\nEs kann sein das kein Ergebniss gefunden wird."
+                << endl;
+        cout << "" << endl;
+    } else {
+        cout << "Der Klar-Geheim Kompromiss wird mit 2*n^2 durchgeführt." << endl;
     }
 
-    vector<string> result;
-    result.push_back(tmp.at(0));
-    result.push_back(tmp.at(2));
-
-    return result;
-}
-
-void angriffGruppeN(int gruppe) {
-
-    string file = "kryptochallengegruppe";
-    file += to_string(gruppe);
-    file += ".txt";
-
-    chrono::steady_clock::time_point start = chrono::steady_clock::now();
-
-    vector<string> input = readChallengeIn(file);
-
-    chrono::steady_clock::time_point end = chrono::steady_clock::now();
-    long misec = chrono::duration_cast<chrono::microseconds>(end - start).count();
-
-    std::cout << misec / 1000 << ":" << misec % 1000 << " [ms:μm]\n" << endl;
-
     vector<vector<vector<int>>> publicK = createPublicKey(input.at(0));
-    vector<int> clear = generateRandomClear(publicK.size());
+    vector<int> clear = generateRandomClear(publicK.size(), mode);
     vector<int> chi = createVector(input.at(1), ',');
 
-    angriff(publicK, clear, chi);
+    return angriff(publicK, clear, chi);
 }
 
-void angriffDatei(string file) {
+/*
+ * -------------------------------------------------
+ * Methoden die Ideen, Versuche, Übungen umsetzen
+ * -------------------------------------------------
+ * */
 
-    chrono::steady_clock::time_point start = chrono::steady_clock::now();
+/*
+ * Erzeugt einen Public Key und dazu gehörigen Chitext
+ *
+ * Funktioniert leider nicht. Wahrscheinlich fehlt der mathematische Hintergrund.
+ * */
+void generateRandomChallange(int dimension) {
+    string ranKey = "";
 
-    vector<string> input = readChallengeIn(file);
+    for (int i = 0; i < dimension; i++) {
 
-    chrono::steady_clock::time_point end = chrono::steady_clock::now();
-    long misec = chrono::duration_cast<chrono::microseconds>(end - start).count();
+        int end = (rand() % (dimension * dimension)) + dimension;
+        for (int n = 0; n < end; n++) {
+            if ((rand() % 5) == 1) {
+                ranKey += "x_";
+                ranKey += to_string((rand() % dimension) + 1);
+            } else {
+                ranKey += "x_";
+                ranKey += to_string((rand() % dimension) + 1);
+                ranKey += "*x_";
+                ranKey += to_string((rand() % dimension) + 1);
+            }
 
-    std::cout << misec / 1000 << ":" << misec % 1000 << " [ms:μm]\n" << endl;
+            if (n < (end - 1)) {
+                ranKey += " + ";
+            } else {
+                ranKey += ",\n";
+            }
+        }
+    }
 
-    vector<vector<vector<int>>> publicK = createPublicKey(input.at(0));
-    vector<int> clear = generateRandomClear(publicK.size());
-    vector<int> chi = createVector(input.at(1), ',');
+    // Erzeugt einen zufälligen Namen
+    string filename = "selfGenerated_d" + to_string(dimension) + "_" + to_string(rand() % 100000) + ".txt";
 
-    angriff(publicK, clear, chi);
+    // Linux Pfad
+    std::ofstream outfile("/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+    // Windows Pfad
+    //std::ofstream outfile("C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+
+    // Erzeugt zu dem generierten Key einen Chitext
+    vector<vector<vector<int>>> fancyKey = createPublicKey(ranKey);
+    vector<int> clear = generateRandomClear(dimension, 2);
+    vector<int> chi = encrypt(clear, fancyKey);
+
+    // Schreibt den Key und den Chitext in eine Datei
+    outfile << "Public Key: [ " << ranKey << "]" << endl;
+    outfile << "Chitext: [ ";
+    for (int i = 0; i < chi.size(); i++) {
+        if (i < (chi.size() - 1)) {
+            outfile << chi.at(i) << ", ";
+        } else {
+            outfile << chi.at(i);
+        }
+    }
+    outfile << "]" << endl;
 }
+
 
 int main() {
-
     srand(time(0));
 
+    // Start der Zeitmessung
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
 
+    /*
+     * Der Mode gibt an wie viel Klar-Geheim Kompromiss verwendet werden soll
+     *
+     * 0 = Normaler Modus: Wie in der Vorlesung besprochen (2*n^2) * n
+     * 1 = Performance Modus: Weniger als  beim "Normalen Modus" (n*n^2) Kann zu fehler führen
+     *
+     * Nicht zu verwenden:
+     * [2 = Eine Zeile (n) wird intern verwendet]
+     * */
+    int mode = 1;
 
     /*
-     *
+     * Jeder in Moodel zu verfügung gestellter Angriff kann hier durchgeführt werden
      * */
-    angriffGruppeN(1);
+    angriffGruppeN(1, mode);
 
-    //angriffDatei("BeispielAngriffd7.txt");
+    /*
+     * Theoretisch kan jeder richtig formatierte Datei eingelesen werden
+     * */
+    //angriffDatei("BeispielAngriffd7.txt", mode);
 
+    /*
+     * Exemplarisch ist hier einer der Beispiel Angriffe hardgecoded
+     *
+     * Kein mode da der Klar text vorgegeben war
+     * */
+    //angriffD3();
+
+
+    // Ende der Ausführung wird gespeichert
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
-    cout << "\nBenötigte Zeiten: \n";
-
-    int min = chrono::duration_cast<chrono::minutes>(end - begin).count();
-    int sec = chrono::duration_cast<chrono::seconds>(end - begin).count();
-    long msec = chrono::duration_cast<chrono::milliseconds>(end - begin).count();
+    /*
+     * Ausgabe der Zeit die für die Berechnung benötigt wurde
+     * */
     long misec = chrono::duration_cast<chrono::microseconds>(end - begin).count();
-
-    std::cout << min << ":" << sec % 60 << ":" << msec % 1000 << ":" << misec % 1000 << " [m:ss:ms:μm]\n" << endl;
+    cout << "Benötigte Zeit:" << endl;
+    cout << (((misec / 1000) / 1000) / 60) % 60 << ":" << ((misec / 1000) / 1000) % 60 << ":" << (misec / 1000) % 1000
+         << ":" << misec % 1000 << " [m:ss:ms:μm]\n" << endl;
 
     return 0;
 }

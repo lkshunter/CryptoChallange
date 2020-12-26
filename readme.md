@@ -35,11 +35,12 @@ ___
 #### Fall 1: Eine der 14 Crypto Challenge Angriffe durchführen
 
 In diesem Fall einfach die Methode *angriffGruppeN(int gruppe)* ausführen. Der Übergabe Parameter *gruppe* kann von 1
-bis 14 gewählt werden.
+bis 14 gewählt werden. Der Parameter *mode* gibt an welcher Modus verwendet werden soll. Die *0* enstspricht dem
+Normalen Modus hier wird für den Klar-Geheim Kompromiss *2\*n\^2* verwendet. Um die Laufzeit bei größeren Public Keys zu
+verringern, gibt es den **Performance Mode**. Genaueres dazu wird im Abschnitt Performance erläutert.
 
 ````c++
-int gruppenNummer = 1;
-angriffGruppeN(gruppenNummer);
+angriffGruppeN(int gruppenNummer, int mode);
 ````
 
 ___
@@ -103,8 +104,8 @@ void angriffHardCoded() {
 
 ## Perfomance
 
+### Unterschiede in der Art der Toolchain
 ___
-
 Es lassen sich Unterscheide in der Performance feststellen je nachdem wie man den Code compilen lässt. Verglichen werden
 die Varianten CygWin und das Windows-Subsystem für Linux.
 
@@ -115,7 +116,14 @@ die Varianten CygWin und das Windows-Subsystem für Linux.
 | d7            | 00:00:212:710 | 00:00:012:107 |
 | Gruppe 1      | 02:21:830:675 | 01:10:507:878 |
 
-Format der Zeitangabe [m:ss:ms:μm]
+Format der Zeitangabe `[m:ss:ms:μm]`
+
+### Der Performane Mode
+
+___
+
+Da sich bei größeren Public Keys die Laufzeit drastisch erhöt gibt es dem **Performance Mode**. Hier werden die
+erzeugten Bits für den Klar-Geheim Kompromiss reduziert.
 
 ## Ablauf des Angriffs
 
@@ -123,8 +131,8 @@ Format der Zeitangabe [m:ss:ms:μm]
 
 ___
 Der Public Key und der Chitext müssen von einem String jeweils in ein Format gebracht werden, das es einfacher macht,
-mit ihnen zu arbeiten. Die Ausgangslage von Public Key und Chitext ist in **Fall 2: Einen eigenen Public Key und Chitext
-einlesen und brechen** beschrieben.
+mit ihnen zu arbeiten. Die Ausgangslage von Public Key und Chitext ist
+in `Fall 2: Einen eigenen Public Key und Chitext einlesen und brechen` beschrieben.
 
 #### Public Key
 
@@ -180,8 +188,8 @@ ___
 Um den Klar-Geheim Kompromiss (KGK) zu erzeugen, muss der Chitext (0,0,1) mit dem Klartext (0, 1, 1) multipliziert
 werden. Es muss eine gewisse Menge von diesem KGK erzeugt werden in der Vorlesung, wurde 2*n^2 empfohlen. Bei dem
 Beispiel d3 sind das 18 Zeilen à 9 Bits. Bei eigenen Versuchen die Laufzeit zu optimieren wurde der KGK drastisch
-verringert. Hier ist aber anzumerken, das irgendwann nicht mehr genug Informationen vorliegen, um die Verschlüsselung zu
-brechen.
+verringert. Dafür wurde der Performance Modus implementiert. Dieser Modus ist zwar schneller kann aber unter Umständen
+kein Ergebniss liefern.
 
 ````text
 Chi     Klar    Klar-Geheim Kompromiss
@@ -215,12 +223,16 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
      * */
     for (int i = 0; i < clear.size(); i += l) {
 
-        // Leeren der Matrizen
+        /*
+         * Leert die Matrizen vom letzten Durchlauf
+         * */
         NTL::clear(vec);
         NTL::clear(mat);
         NTL::clear(erg);
 
-        // Füllen der Matrizen
+        /*
+         * Füllt die Matrix mat Chitext und den Vektor vec mit dem Klartext 
+         * */
         for (int j = i; j < (i + l); j++) {
             vec[j - i][0] = clear.at(j);
             mat[0][j - i] = chi.at(j);
@@ -231,7 +243,9 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
          * */
         NTL::mul(erg, vec, mat);
         
-        
+        /*
+         * Schreibt die sich ergebende l*l Matrix als eine Zeile des Klar-Geheim Kompromisses um
+         * */
         m = 0;
         for (int a = 0; a < erg.NumRows(); a++) {
             for (int b = 0; b < erg.NumCols(); b++) {
@@ -242,17 +256,21 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
         n++;
     }
 
+    // Gibt den Klar-Geheim Kompromiss vor anwenden des Gauss Algorithmus aus 
     cout << triangle << "\n" << endl;
     
     // Anwendung des Gauss Algorithmus durch NTL
     NTL::gauss(triangle);
 
+    // Gibt die Matrix nach dem Gauss aus
     cout << triangle << "\n" << endl;
 
     return triangle;
 }
 ````
 
+Dieser Teil des Codes ist bei größernen Key's und entsprechendem KGK sehr rechen intensiv.
+(Todo: Ablauf irgendwie vereinfachen)
 ### Aufrollen der Matrix
 
 ___
