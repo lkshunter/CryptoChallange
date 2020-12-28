@@ -8,20 +8,21 @@
 
 ## Installation
 
-Das Programm wurde in Clinon unter Windows geschrieben und ist für das Ausführen in dieser IDE gedacht. Dabei muss der
+Das Programm wurde in Clion unter Windows geschrieben und ist für das Ausführen in dieser IDE gedacht. Dabei muss der
 Pfad angepasst werden je nachdem welchen Compiler man verwendet. In unserem Projekt wurde es mit CygWin und dem
-Windows-Subsystem für Linux (WSL) zum Laufen gebracht. Alle dafür benötigten Dateien liegen bei. Der Pfad für die
+Windows-Subsystem für Linux \(WSL\) zum Laufen gebracht. Alle dafür benötigten Dateien liegen bei. Der Pfad für die
 Dateien mit den Aufgaben muss unter Linux angepasst werden in der Methode:
 
 ````c++
-vector<string> readChallengeIn(string filename) {
-// Linux
-// Pfad zum compilen unter Windows im WSL
-ifstream t("/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+int main() {
+srand(time(0));
 
+// Windows-Subsystem für Linux
+glb_path = "/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
 // Windows
-// Pfad zum compilen unter Windows mit CygWin
-ifstream t("C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/" + filename);
+glb_path = "C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
+
+time_t now = time(0);
 ...
 }
 ````
@@ -34,9 +35,9 @@ ___
 
 #### Fall 1: Eine der 14 Crypto Challenge Angriffe durchführen
 
-In diesem Fall einfach die Methode *angriffGruppeN(int gruppe)* ausführen. Der Übergabe Parameter *gruppe* kann von 1
-bis 14 gewählt werden. Der Parameter *mode* gibt an welcher Modus verwendet werden soll. Die *0* enstspricht dem
-Normalen Modus hier wird für den Klar-Geheim Kompromiss *2\*n\^2* verwendet. Um die Laufzeit bei größeren Public Keys zu
+In diesem Fall einfach die Methode `angriffGruppeN(int gruppe)` ausführen. Der Übergabe Parameter `gruppe` kann von 1
+bis 14 gewählt werden. Der Parameter `mode` gibt an welcher Modus verwendet werden soll. Die `0` enstspricht dem
+Normalen Modus hier wird für den Klar-Geheim Kompromiss `2\*n\^2` verwendet. Um die Laufzeit bei größeren Public Keys zu
 verringern, gibt es den **Performance Mode**. Genaueres dazu wird im Abschnitt Performance erläutert.
 
 ````c++
@@ -47,11 +48,11 @@ ___
 
 #### Fall 2: Einen eigenen Public Key und Chitext einlesen und brechen
 
-Der Public Key und der Chitext werden über die Methode *angriffDatei(string file)* eingelesen und angegriffen. Übergeben
-werden muss der Methode nur der Dateiname samt Endung. In diesem Fall muss die Datei ausgehend von der *main.cpp* im
-Ordner "./Zusatsmaterialien/Aufgabe/" liegen.
+Der Public Key und der Chitext werden über die Methode `angriffDatei(string file)` eingelesen und angegriffen. Übergeben
+werden muss der Methode nur der Dateiname samt Endung. In diesem Fall muss die Datei ausgehend von der `main.cpp` im
+Ordner `"./Zusatsmaterialien/Aufgabe/"` liegen.
 (Solange der Pfad wie in Installation beschrieben nicht verändert wurde) Die Methode kann prinzipiell überall aufgerufen
-werden. Zum Messen der Zeit ist es aber wichtig das es zwischen *begin* und *ende* liegt.
+werden. Zum Messen der Zeit ist es aber wichtig das es zwischen `begin` und `ende` liegt.
 
 ````c++
 chrono::steady_clock::time_point begin = chrono::steady_clock::now();
@@ -70,7 +71,7 @@ Chitext: [0,1,0,1,...]
 ````
 
 Ein gutes Beispiel für den Aufbau einer solchen Datei sind die drei Angriffe d3, d5 und d7. Diese liegen als
-.txt-Dateien aufbereitet auch im Ordner *Aufgabe*.
+.txt-Dateien aufbereitet auch im Ordner `Aufgabe`.
 
 * BeispielAngriffd3.txt
 * BeispielAngriffd5.txt
@@ -81,7 +82,7 @@ ___
 ### Angriffe "hardgecoded" (ohne einlesen)
 
 Für den Fall das es wichtig ist zu testen, ob es performance technisch einen Unterschied macht ob der Key und der
-Chitext dynamisch eingelesen wird hier eine .
+Chitext dynamisch eingelesen wird hier eine.
 
 ````c++
 void angriffHardCoded() {
@@ -110,7 +111,7 @@ Es lassen sich Unterscheide in der Performance feststellen je nachdem wie man de
 die Varianten CygWin und das Windows-Subsystem für Linux.
 
 | Angriff       | CygWin        | WSL           |
-| :-----------: | ------------: | -------------:|
+| :-----------: | ------------- | -------------:|
 | d3            | 00:00:037:267 | 00:00:001:725 |
 | d5            | 00:00:094:713 | 00:00:004:240 |
 | d7            | 00:00:212:710 | 00:00:012:107 |
@@ -141,7 +142,7 @@ vector<vector<vector<int>>> createPublicKey(String pubKey)
 ````
 
 Nach dem der String in seine Einzelteile zerlegt wurde, wird er nach folgender Logik in dem Vektor-Konstrukt
-*vector\<vector\<vector\<int>>>* abgelegt.
+`vector\<vector\<vector\<int>>>` abgelegt.
 
 ````text
 vector1_PublicKey(
@@ -179,17 +180,17 @@ Darstellungen der einzelnen Summanden einer Funktion. Und die darin enthaltenen 
 vector<int> createVector(String chi, char seperator)
 ````
 
-Im Chitext soll jedes Bit einzeln im, einem *int* Vektor abgelegt werden. Dazu wird der String an jedem Komma
-aufgetrennt und die Ziffern mit *std::stoi()* in einen *int* gecastet. Danach wird der *int* in den Vektor gespeichert.
+Im Chitext soll jedes Bit einzeln im, einem `int` Vektor abgelegt werden. Dazu wird der String an jedem Komma
+aufgetrennt und die Ziffern mit `std::stoi()` in einen `int` gecastet. Danach wird der `int` in den Vektor gespeichert.
 
 ### Erzeugen des Klar-Geheim Kompromisses
 
 ___
-Um den Klar-Geheim Kompromiss (KGK) zu erzeugen, muss der Chitext (0,0,1) mit dem Klartext (0, 1, 1) multipliziert
-werden. Es muss eine gewisse Menge von diesem KGK erzeugt werden in der Vorlesung, wurde 2*n^2 empfohlen. Bei dem
+Um den Klar-Geheim Kompromiss (KGK) zu erzeugen, muss der Chitext `(0,0,1)` mit dem Klartext `(0, 1, 1)` multipliziert
+werden. Es muss eine gewisse Menge von diesem KGK erzeugt werden in der Vorlesung, wurde `2*n^2` empfohlen. Bei dem
 Beispiel d3 sind das 18 Zeilen à 9 Bits. Bei eigenen Versuchen die Laufzeit zu optimieren wurde der KGK drastisch
 verringert. Dafür wurde der Performance Modus implementiert. Dieser Modus ist zwar schneller kann aber unter Umständen
-kein Ergebniss liefern.
+kein Ergebnis liefern.
 
 ````text
 Chi     Klar    Klar-Geheim Kompromiss
@@ -199,53 +200,34 @@ Chi     Klar    Klar-Geheim Kompromiss
 ````
 
 Der Ablauf und die verschiedenen Schritte sind in der Methode beschrieben. In dieser Implementation wird nur der
-einfache Gauß angewendet. In der Vorlesung wurde der *reduced row echolon* empfolen. Diese Form des Gauß Algorithmus
+einfache Gauß angewendet. In der Vorlesung wurde der *reduced row echolon* empfohlen. Diese Form des Gauß Algorithmus
 entfernt auch über der Stufenform möglichst viel Nullen.
 
 ````c++
 NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
     NTL::mat_GF2 triangle;
     triangle.SetDims((clear.size() / l), l * l);
-    NTL::clear(triangle);
     int m, n = 0;
-
-    /*
-     * Definieren der benötigten Matrizen
-     * */
-    NTL::mat_GF2 vec; // Klartext Spalten: 1, Zeilen: l
-    NTL::mat_GF2 mat; // Chitext Splaten: l, Zeilen: 1
-    NTL::mat_GF2 erg; // Ergebniss der Multplikation Splaten: l, Zeilen: l
+    
+    NTL::mat_GF2 vec;
+    NTL::mat_GF2 mat;
+    NTL::mat_GF2 erg;
     vec.SetDims(l, 1);
     mat.SetDims(1, l);
-
-    /*
-     * Jede Zeile des Klartextes wird mit dem dazugehörigen Chitext multipliziert
-     * */
+    
     for (int i = 0; i < clear.size(); i += l) {
-
-        /*
-         * Leert die Matrizen vom letzten Durchlauf
-         * */
+        
         NTL::clear(vec);
         NTL::clear(mat);
         NTL::clear(erg);
-
-        /*
-         * Füllt die Matrix mat Chitext und den Vektor vec mit dem Klartext 
-         * */
+        
         for (int j = i; j < (i + l); j++) {
             vec[j - i][0] = clear.at(j);
             mat[0][j - i] = chi.at(j);
         }
-
-        /*
-         * Multiplikation von Klartext und Chitext
-         * */
+        
         NTL::mul(erg, vec, mat);
         
-        /*
-         * Schreibt die sich ergebende l*l Matrix als eine Zeile des Klar-Geheim Kompromisses um
-         * */
         m = 0;
         for (int a = 0; a < erg.NumRows(); a++) {
             for (int b = 0; b < erg.NumCols(); b++) {
@@ -255,26 +237,88 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
         }
         n++;
     }
-
-    // Gibt den Klar-Geheim Kompromiss vor anwenden des Gauss Algorithmus aus 
+    
     cout << triangle << "\n" << endl;
     
-    // Anwendung des Gauss Algorithmus durch NTL
     NTL::gauss(triangle);
-
-    // Gibt die Matrix nach dem Gauss aus
+    
     cout << triangle << "\n" << endl;
 
     return triangle;
 }
 ````
 
-Dieser Teil des Codes ist bei größernen Key's und entsprechendem KGK sehr rechen intensiv.
+Dieser Teil des Codes ist bei größernen Key's und entsprechendem KGK sehr rechen intensiv.</br>
 (Todo: Ablauf irgendwie vereinfachen)
+
+### Erkennen und speichern der freien Variablen
+
+___
+Um die freien Variablen zu ermitteln werden in unserer Implementation erst alle führenden Einsen pro Zeile gespeichert.
+Das Schleifen Konstrukt geht aber nicht jeden Vert in der Matrix durch. Zur Verbesserung der Laufzeit gibt es
+Abbruchkriterien. Wie im Code zu sehen ist wenn, das erste if-Statement erfüllt ist, wurde die erste Eins gefunden. Um
+den Schleifendurchlauf zu beenden wird `n` auf den maximalen Wert gesetzt. Gleichzeitig wird `start` auf `n+1`
+gesetzt das bewirkt, dass im nächsten Schritt die Schleife nicht bei null anfängt, sondern an der Stelle wo in einer
+idealen Matrix die nächte Eins auch der Zeilenstufe wäre. So können viele Iterations schritte vermieden werden. Da
+unterhalb der Zeilen-Stufenform keine einsen existieren. Außerdem wird die Position der Zeilen-Stufenform Eins
+gespeichert.
+
+```c++
+for (int i = 0; i < gaussMatrix.NumRows(); i++) {
+    int start = 0;
+    for (int n = start; n < gaussMatrix.NumCols(); n++) {
+        if (!(NTL::IsZero(gaussMatrix[i][n]))) {
+            oneSteps.push_back(vector<int>{i, n});
+            start = n + 1;
+            n = gaussMatrix.NumCols();
+        }
+        if (n == (gaussMatrix.NumCols() - 1)) {
+            rowMax = i - 1;
+            i = gaussMatrix.NumRows();
+        }
+    }
+}
+```
+
 ### Aufrollen der Matrix
 
 ___
-todo
+Für diesen Schritt und noch folgende Schritte müssen Daten erfasst und gespeichert werden. Ausschließlich für das
+Aufrollen wird der Vektor `expectedOne` verwendet. Hier werden an den Stellen 0,1 die Zeilen und Spalten Nummer der
+nächsten erwarteten Zeilen-Stufen Eins abgespeichert. Die erste erwartete Eins liegt in der unteren rechten Ecke der
+Matrix. Im Laufe des Programmes werden diese Werte für jede kommende Zeile angepasst. Wichtig für das Erzeugen der
+späteren speziellen Lösungen sind die Vektoren `freeVar` und `rowJump`. In `freeVar` werden, wie der Name vermuten lässt
+die freien Variablen gespeichert. `rowJump` wird verwendet um zu speichern in welchen Zeilen mehr als eine freie
+Variable gefunden wurde.</br>
+
+```c++
+if (!(NTL::IsZero(gaussMatrix))) {
+    vector<int> expectedOne;
+    vector<int> freeVar;
+    vector<int> rowJump;
+
+    expectedOne.push_back(rowMax);
+    expectedOne.push_back(gaussMatrix.NumCols() - 1);
+
+    for (int i = rowMax; i >= 0; i--) {
+        if (!(expectedOne.at(0) == oneSteps.at(i).at(0) && expectedOne.at(1) == oneSteps.at(i).at(1))) {
+            for (int n = expectedOne.at(1); n > oneSteps.at(i).at(1); n--) {
+                rowJump.push_back(i);
+                freeVar.push_back(n);
+            }
+
+            if (i > 0) {
+                expectedOne.at(0) = oneSteps.at(i).at(0);
+                expectedOne.at(1) = oneSteps.at(i).at(1);
+            }
+        }
+
+        expectedOne.at(0) -= 1;
+        expectedOne.at(1) -= 1;
+    }
+    ...
+}
+```
 
 ### Erstellen der speziellen Lösung und daraus resultierenden Basis
 

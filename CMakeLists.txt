@@ -11,7 +11,7 @@ file(GLOB_RECURSE NTL_SOURCE_LIST CONFIGURE_DEPENDS ${CryptoChallange_SOURCE_DIR
 
 add_library(ntl ${NTL_SOURCE_LIST} ${NTL_HEADER_LIST})
 
-SET(GCC_COVERAGE_COMPILE_FLAGS "-std=c++11 -DARMA_DONT_PRINT_CXX11_WARNING")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -pthread -DARMA_DONT_PRINT_CXX11_WARNING")
 add_executable(CryptoChallange main.cpp)
 
 target_link_libraries(CryptoChallange PRIVATE ntl)
