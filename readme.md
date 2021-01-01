@@ -9,7 +9,7 @@
 ## Installation
 
 Das Programm wurde in Clion unter Windows geschrieben und ist für das Ausführen in dieser IDE gedacht. Dabei muss der
-Pfad angepasst werden je nachdem welchen Compiler man verwendet. In unserem Projekt wurde es mit CygWin und dem
+Pfad angepasst werden je nachdem welchen Compiler man verwendet. Unser Projekt wurde mit CygWin und dem
 Windows-Subsystem für Linux \(WSL\) zum Laufen gebracht. Alle dafür benötigten Dateien liegen bei. Der Pfad für die
 Dateien mit den Aufgaben muss unter Linux angepasst werden in der Methode:
 
@@ -33,11 +33,11 @@ time_t now = time(0);
 
 ___
 
-#### Fall 1: Eine der 14 Crypto Challenge Angriffe durchführen
+#### Fall 1: Einen der 14 Crypto Challenge Angriffe durchführen
 
-In diesem Fall einfach die Methode `angriffGruppeN(int gruppe)` ausführen. Der Übergabe Parameter `gruppe` kann von 1
+In diesem Fall einfach die Methode `angriffGruppeN(int gruppe)` ausführen. Der Übergabeparameter `gruppe` kann von 1
 bis 14 gewählt werden. Der Parameter `mode` gibt an welcher Modus verwendet werden soll. Die `0` enstspricht dem
-Normalen Modus hier wird für den Klar-Geheim Kompromiss `2\*n\^2` verwendet. Um die Laufzeit bei größeren Public Keys zu
+normalen Modus hier werden `2\*n\^2` Klar-Geheim-Kompromisse verwendet. Um die Laufzeit bei größeren Public Keys zu
 verringern, gibt es den **Performance Mode**. Genaueres dazu wird im Abschnitt Performance erläutert.
 
 ````c++
@@ -52,7 +52,7 @@ Der Public Key und der Chitext werden über die Methode `angriffDatei(string fil
 werden muss der Methode nur der Dateiname samt Endung. In diesem Fall muss die Datei ausgehend von der `main.cpp` im
 Ordner `"./Zusatsmaterialien/Aufgabe/"` liegen.
 (Solange der Pfad wie in Installation beschrieben nicht verändert wurde) Die Methode kann prinzipiell überall aufgerufen
-werden. Zum Messen der Zeit ist es aber wichtig das es zwischen `begin` und `ende` liegt.
+werden. Zum Messen der Zeit ist es aber wichtig, dass es zwischen `begin` und `ende` liegt.
 
 ````c++
 chrono::steady_clock::time_point begin = chrono::steady_clock::now();
@@ -123,7 +123,7 @@ Format der Zeitangabe `[m:ss:ms:μm]`
 
 ___
 
-Da sich bei größeren Public Keys die Laufzeit drastisch erhöt gibt es dem **Performance Mode**. Hier werden die
+Da sich bei größeren Public Keys die Laufzeit drastisch erhöt, gibt es den **Performance Mode**. Hier werden die
 erzeugten Bits für den Klar-Geheim Kompromiss reduziert.
 
 ## Ablauf des Angriffs
@@ -141,7 +141,7 @@ in `Fall 2: Einen eigenen Public Key und Chitext einlesen und brechen` beschrieb
 vector<vector<vector<int>>> createPublicKey(String pubKey)
 ````
 
-Nach dem der String in seine Einzelteile zerlegt wurde, wird er nach folgender Logik in dem Vektor-Konstrukt
+Nachdem der String in seine Einzelteile zerlegt wurde, wird er nach folgender Logik in dem Vektor-Konstrukt
 `vector\<vector\<vector\<int>>>` abgelegt.
 
 ````text
@@ -171,7 +171,7 @@ vector1_PublicKey(
 )
 ````
 
-Den äußersten Vector kann als eine Funktion des Public Key verstanden werden. Die darin enthaltenen Vektoren sind die
+Der äußerste Vector kann als eine Funktion des Public Key verstanden werden. Die darin enthaltenen Vektoren sind die
 Darstellungen der einzelnen Summanden einer Funktion. Und die darin enthaltenen sind die Multiplikanden der Funktion.
 
 #### Chitext
@@ -180,16 +180,16 @@ Darstellungen der einzelnen Summanden einer Funktion. Und die darin enthaltenen 
 vector<int> createVector(String chi, char seperator)
 ````
 
-Im Chitext soll jedes Bit einzeln im, einem `int` Vektor abgelegt werden. Dazu wird der String an jedem Komma
+Im Chitext soll jedes Bit einzeln in einem `int` Vektor abgelegt werden. Dazu wird der String an jedem Komma
 aufgetrennt und die Ziffern mit `std::stoi()` in einen `int` gecastet. Danach wird der `int` in den Vektor gespeichert.
 
 ### Erzeugen des Klar-Geheim Kompromisses
 
 ___
 Um den Klar-Geheim Kompromiss (KGK) zu erzeugen, muss der Chitext `(0,0,1)` mit dem Klartext `(0, 1, 1)` multipliziert
-werden. Es muss eine gewisse Menge von diesem KGK erzeugt werden in der Vorlesung, wurde `2*n^2` empfohlen. Bei dem
+werden. Es muss eine gewisse Menge von diesen KGK erzeugt werden. In der Vorlesung wurden `2*n^2` KGK empfohlen. Bei dem
 Beispiel d3 sind das 18 Zeilen à 9 Bits. Bei eigenen Versuchen die Laufzeit zu optimieren wurde der KGK drastisch
-verringert. Dafür wurde der Performance Modus implementiert. Dieser Modus ist zwar schneller kann aber unter Umständen
+verringert. Dafür wurde der Performance Modus implementiert. Dieser Modus ist zwar schneller, kann aber unter Umständen
 kein Ergebnis liefern.
 
 ````text
@@ -201,7 +201,7 @@ Chi     Klar    Klar-Geheim Kompromiss
 
 Der Ablauf und die verschiedenen Schritte sind in der Methode beschrieben. In dieser Implementation wird nur der
 einfache Gauß angewendet. In der Vorlesung wurde der *reduced row echolon* empfohlen. Diese Form des Gauß Algorithmus
-entfernt auch über der Stufenform möglichst viel Nullen.
+entfernt auch über der Stufenform möglichst viele Einsen.
 
 ````c++
 NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
@@ -248,19 +248,19 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
 }
 ````
 
-Dieser Teil des Codes ist bei größernen Key's und entsprechendem KGK sehr rechen intensiv.</br>
+Dieser Teil des Codes ist bei größernen Key's und entsprechendem KGK sehr rechenintensiv.</br>
 (Todo: Ablauf irgendwie vereinfachen)
 
 ### Erkennen und speichern der freien Variablen
 
 ___
 Um die freien Variablen zu ermitteln werden in unserer Implementation erst alle führenden Einsen pro Zeile gespeichert.
-Das Schleifen Konstrukt geht aber nicht jeden Vert in der Matrix durch. Zur Verbesserung der Laufzeit gibt es
-Abbruchkriterien. Wie im Code zu sehen ist wenn, das erste if-Statement erfüllt ist, wurde die erste Eins gefunden. Um
+Das Schleifenkonstrukt geht aber nicht jeden Wert in der Matrix durch. Zur Verbesserung der Laufzeit gibt es
+Abbruchkriterien. Wie im Code zu sehen ist, wenn das erste if-Statement erfüllt ist, wurde die erste Eins gefunden. Um
 den Schleifendurchlauf zu beenden wird `n` auf den maximalen Wert gesetzt. Gleichzeitig wird `start` auf `n+1`
 gesetzt das bewirkt, dass im nächsten Schritt die Schleife nicht bei null anfängt, sondern an der Stelle wo in einer
-idealen Matrix die nächte Eins auch der Zeilenstufe wäre. So können viele Iterations schritte vermieden werden. Da
-unterhalb der Zeilen-Stufenform keine einsen existieren. Außerdem wird die Position der Zeilen-Stufenform Eins
+idealen Matrix die nächte Eins auf der Zeilenstufe wäre. So können viele Iterationsschritte vermieden werden. Da
+unterhalb der Zeilen-Stufenform keine Einsen existieren. Außerdem wird die Position der Eins auf der Zeilenstufe
 gespeichert.
 
 ```c++
@@ -287,7 +287,7 @@ Für diesen Schritt und noch folgende Schritte müssen Daten erfasst und gespeic
 Aufrollen wird der Vektor `expectedOne` verwendet. Hier werden an den Stellen 0,1 die Zeilen und Spalten Nummer der
 nächsten erwarteten Zeilen-Stufen Eins abgespeichert. Die erste erwartete Eins liegt in der unteren rechten Ecke der
 Matrix. Im Laufe des Programmes werden diese Werte für jede kommende Zeile angepasst. Wichtig für das Erzeugen der
-späteren speziellen Lösungen sind die Vektoren `freeVar` und `rowJump`. In `freeVar` werden, wie der Name vermuten lässt
+späteren speziellen Lösungen sind die Vektoren `freeVar` und `rowJump`. In `freeVar` werden, wie der Name vermuten lässt,
 die freien Variablen gespeichert. `rowJump` wird verwendet um zu speichern in welchen Zeilen mehr als eine freie
 Variable gefunden wurde.</br>
 
