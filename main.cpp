@@ -10,10 +10,18 @@
 
 using namespace std;
 
-/**
+/*
+ * --------------------------------------
  * Globale Variable
+ * Sorgen für einen besseren ablauf des Programms ohne unnötige
+ * --------------------------------------
  * */
-string glb_path;
+
+string glb_path;                    // Gibt den Pfad an in dem die Angriffe als Datei zu finden sind
+bool consoleOutputLevel = false;    // Gibt an ob ein Angriff die Ergebnisse der Zwischenschritte ausgeben soll
+bool multiThread = true;            // Gibt an ob der Angriff mit mehreren Threads ausgeführt werden soll
+bool performanceMode = true;        // Gibt an ob der Angriff im Performance Mode ausgeführt werden soll
+mutex mtx;                          // Wird genutzt um die Ausgaben der Threads zu koordinieren
 
 /* -----------------------------------
  * Helfer-Methoden für den Angriff
@@ -24,8 +32,8 @@ string glb_path;
  * Entfernt alle definierten Character aus einem String
  *
  * @category helfer
- * @param str: String aus dem die Zeichen entfernt werden sollen
- * @param elements: Char[] in dem alle zu löschenden character enthalten sind
+ * @param str String aus dem die Zeichen entfernt werden sollen
+ * @param elements Char[] in dem alle zu löschenden character enthalten sind
  * */
 void removeChar(string &str, char elements[]) {
     for (unsigned int i = 0; i < strlen(elements); ++i) {
@@ -37,8 +45,8 @@ void removeChar(string &str, char elements[]) {
  * Trennt den String mit dem Klartext an einem Character auf. Die Ziffern werden in einen int gecastet
  *
  * @category helfer
- * @param clear: String der zerteilt werden soll
- * @param c: Der Character an dem der String aufgetrennt werden soll
+ * @param clear String der zerteilt werden soll
+ * @param c Der Character an dem der String aufgetrennt werden soll
  * @return Einen Vector mit dem Klartext als einzelne int-Werte
  * */
 vector<int> createVector(string &clear, char c) {
@@ -57,7 +65,7 @@ vector<int> createVector(string &clear, char c) {
  * Erzeugt aus einem Public Key der als String eingelesen wurde einen iterierbaren Vector
  *
  * @category helfer
- * @param pKey: Der Public Key als String
+ * @param pKey Der Public Key als String
  * @return Den Public Key als Vector
  * */
 vector<vector<vector<int>>> createPublicKey(string &pKey) {
@@ -158,37 +166,37 @@ vector<vector<vector<int>>> createPublicKey(string &pKey) {
  * Erzeugt für eine bestimmt Matrixbreite ausreichend zufälligen Klartext
  *
  * @category helfer
- * @param d: Wie viele Bits können in einem mal verschlüsselt werden
- * @param mode: Gibt an in welchem Modus Klartext erzeugt werden soll
+ * @param d Wie viele Bits können in einem mal verschlüsselt werden
+ * @param mode Gibt an in welchem Modus Klartext erzeugt werden soll
  * @return Klartext der Verschlüsselt werden kann
  * */
-vector<int> generateRandomClear(int d, int mode) {
+vector<int> generateRandomClear(int n, int mode) {
     vector<int> ran;
     long max = 0;
 
     switch (mode) {
         case 0:
-            max = (2 * pow(d, 2)) * d;
+            max = (2 * pow(n, 2)) * n;
 
             for (int i = 0; i < max; i++) {
                 ran.push_back(rand() % 2);
             }
             break;
         case 1:
-            max = d * (d * d);
+            max = n * (n * n);
 
             for (int i = 0; i < max; i++) {
                 ran.push_back(rand() % 2);
             }
             break;
         case 2:
-            for (int i = 0; i < d; i++) {
+            for (int i = 0; i < n; i++) {
                 ran.push_back(rand() % 2);
             }
             break;
         default:
             cout << "Es wurde ein ungültiger Modus gewählt. Es wird standardmäßig 2*n^2 genutzt" << endl;
-            max = (2 * pow(d, 2)) * d;
+            max = (2 * pow(n, 2)) * n;
 
             for (int i = 0; i < max; i++) {
                 ran.push_back(rand() % 2);
@@ -203,7 +211,7 @@ vector<int> generateRandomClear(int d, int mode) {
  * Ließt eine Datei ein und gibt den Public Ke und den Chitext als string zurück
  *
  * @category helfer
- * @param filename: Der Dateiname samt Endung der Datei die eingelesen werden soll
+ * @param filename Der Dateiname samt Endung der Datei die eingelesen werden soll
  * @return An stelle 0 im Vector steht der Key als das String und an Stelle 1 der Chitext
  * */
 vector<string> readChallengeIn(string &filename) {
@@ -243,8 +251,14 @@ vector<string> readChallengeIn(string &filename) {
     }
 
     vector<string> result;
-    result.push_back(tmp.at(0));
-    result.push_back(tmp.at(2));
+
+    try {
+        result.push_back(tmp.at(0));
+        result.push_back(tmp.at(2));
+    } catch (out_of_range &e) {
+        cerr << "\nDie Datei \"" << filename << "\" konnte unter dem Pfad \n\"" << glb_path
+             << "\"\nnicht gefunden werden." << endl;
+    }
 
     return result;
 }
@@ -256,80 +270,91 @@ vector<string> readChallengeIn(string &filename) {
  * */
 
 /**
- * Lamda Funktion für die parallelisierung der Verschlüsselung
+ * Lambda Funktion für die parallelisierung der Verschlüsselung
  *
- * @param id: Nummer des Threads
- * @param clear: Die Speicheradresse des gesamten Klartextvektors
- * @param start: Ab diesem Index im Klartextvektor ist der Thread für die Verschlüsselung zuständig
- * @param end: Bis zu diesem Index im Klartextvektor ist der Thread für die Verschlüsselung zuständig
- * @param result: In die Speicheradresse des übergeben Vektor werden die verschlüsselten Bits gespeichert
- * @param pKey: Die Speicheradresse des Public Key's
+ * @param id Nummer des Threads
+ * @param clear Die Speicheradresse des gesamten Klartextvektors
+ * @param start Ab diesem Index im Klartextvektor ist der Thread für die Verschlüsselung zuständig
+ * @param end Bis zu diesem Index im Klartextvektor ist der Thread für die Verschlüsselung zuständig
+ * @param result In die Speicheradresse des übergeben Vektor werden die verschlüsselten Bits gespeichert
+ * @param pKey Die Speicheradresse des Public Key'
+ * @returns chitext in einen Vektor
  * */
 auto encyptDistributed = [](int id, vector<int> &clear, int start, int end, vector<int> &result,
                             vector<vector<vector<int>>> &pKey) {
-    int cipher = 0;
-
-    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
-
-    /*
-     * Geht den gesamten Klartext durch und springt durch die Breite des Public Key weiter
-     * */
-    for (int o = start * pKey.size(); o < (end * pKey.size()); o += pKey.size()) {
-
+    if (start < end) {
+        int cipher = 0;
+        chrono::steady_clock::time_point begin = chrono::steady_clock::now();
         /*
-         * Geht jede Funktion nacheinander durch
+         * Geht den gesamten Klartext durch und springt durch die Breite des Public Key weiter
          * */
-        for (int i = 0; i < pKey.size(); i++) {
-            cipher = 0;
+        for (int o = start * pKey.size(); o < (end * pKey.size()); o += pKey.size()) {
 
             /*
-             * Geht alle Multiplicationen durch und addiert die einelnen Ergebnisse
-             *
-             * Beispiel x_2 * x_4
+             * Geht jede Funktion nacheinander durch
              * */
-            for (int j = 0; j < pKey.at(i).size(); j++) {
+            for (int i = 0; i < pKey.size(); i++) {
+                cipher = 0;
 
                 /*
-                 * Da nicht jeder Teil der Funktion aus zwei Operanden besteht muss daruf geprüft werden
+                 * Geht alle Multiplicationen durch und addiert die einelnen Ergebnisse
                  *
-                 * Beispiel x_2 * x_4 oder x_3
+                 * Beispiel x_2 * x_4
                  * */
-                if (pKey.at(i).at(j).size() == 2) {
-                    cipher += clear.at(o + pKey.at(i).at(j).at(0) - 1) * clear.at(o + pKey.at(i).at(j).at(1) - 1);
-                } else {
-                    cipher += clear.at(o + pKey.at(i).at(j).at(0) - 1);
+                for (int j = 0; j < pKey.at(i).size(); j++) {
+
+                    /*
+                     * Da nicht jeder Teil der Funktion aus zwei Operanden besteht muss daruf geprüft werden
+                     *
+                     * Beispiel x_2 * x_4 oder x_3
+                     * */
+                    if (pKey.at(i).at(j).size() == 2) {
+                        cipher += clear.at(o + pKey.at(i).at(j).at(0) - 1) * clear.at(o + pKey.at(i).at(j).at(1) - 1);
+                    } else {
+                        cipher += clear.at(o + pKey.at(i).at(j).at(0) - 1);
+                    }
                 }
+
+                /*
+                 * Das Ergebniss der gesamten Funktion wird Modulo 2 gerechnet und in den Vector als chiText gespeichert
+                 * */
+                cipher = cipher % 2;
+                result.push_back(cipher);
             }
-
-            /*
-             * Das Ergebniss der gesamten Funktion wird Modulo 2 gerechnet und in den Vector als chiText gespeichert
-             * */
-            cipher = cipher % 2;
-            result.push_back(cipher);
+            if (consoleOutputLevel == true) {
+                mtx.lock();
+                cout << "Thread: " << id << " hat Zeile: " << (o / pKey.size()) + 1 << " wurde Verschlüsselt" << endl;
+                mtx.unlock();
+            }
         }
+
+        chrono::steady_clock::time_point ende = chrono::steady_clock::now();
+
+        long misec = chrono::duration_cast<chrono::microseconds>(ende - begin).count();
+
+        mtx.lock();
+
+        cout << "\tThread " << id << " hat " << (end * pKey.size()) - (start * pKey.size())
+             << " Bits verschlüsselt: \n\t\t"
+             << (((misec / 1000) / 1000) / 60) % 60 << ":" << ((misec / 1000) / 1000) % 60 << ":"
+             << (misec / 1000) % 1000
+             << ":" << misec % 1000 << " [m:ss:ms:μm]\n" << endl;
+
+        mtx.unlock();
     }
-
-    chrono::steady_clock::time_point ende = chrono::steady_clock::now();
-
-    long misec = chrono::duration_cast<chrono::microseconds>(ende - begin).count();
-
-    cout << "\tThread " << id << " hat " << (end * pKey.size()) - (start * pKey.size()) << " Bits verschlüsselt: \n\t\t"
-         << (((misec / 1000) / 1000) / 60) % 60 << ":" << ((misec / 1000) / 1000) % 60 << ":"
-         << (misec / 1000) % 1000
-         << ":" << misec % 1000 << " [m:ss:ms:μm]\n" << endl;
 };
 
 /**
  * Verschlüsselt einen Klartext mit einem Public Key
  *
  * @category angriff
- * @param clear: Klartext als vector<int>
- * @param pKey: Public Key als vector<vector<vector<int>>>
+ * @param clear Klartext als vector<int>
+ * @param pKey Public Key als vector<vector<vector<int>>>
  * @return Chitext als vector<int>
  * */
 vector<int> encryptSingleThread(vector<int> &clear, vector<vector<vector<int>>> &pKey) {
     vector<int> chi;
-    int cipher = 0;
+    int cipher;
 
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
 
@@ -339,13 +364,13 @@ vector<int> encryptSingleThread(vector<int> &clear, vector<vector<vector<int>>> 
     for (int o = 0; o < clear.size(); o += pKey.size()) {
 
         /*
-         * Geht jede Funktion nacheinander durch
+         * Geht jede Funktion des Public Key nacheinander durch
          * */
         for (int i = 0; i < pKey.size(); i++) {
             cipher = 0;
 
             /*
-             * Geht alle Multiplicationen durch und addiert die einelnen Ergebnisse
+             * Geht alle Multiplikationen durch und addiert die einzelnen Ergebnisse
              *
              * Beispiel x_2 * x_4
              * */
@@ -359,7 +384,7 @@ vector<int> encryptSingleThread(vector<int> &clear, vector<vector<vector<int>>> 
                  * */
                 if (teilFunktion.size() == 2) {
                     cipher += clear.at(o + teilFunktion.at(0) - 1) * clear.at(o + teilFunktion.at(1) - 1);
-                } else if (teilFunktion.size() == 1) {
+                } else {
                     cipher += clear.at(o + teilFunktion.at(0) - 1);
                 }
             }
@@ -367,8 +392,11 @@ vector<int> encryptSingleThread(vector<int> &clear, vector<vector<vector<int>>> 
             /*
              * Das Ergebniss der gesamten Funktion wird Modulo 2 gerechnet und in den Vector als chiText gespeichert
              * */
-            cipher = cipher % 2;
+            cipher %= 2;
             chi.push_back(cipher);
+        }
+        if (consoleOutputLevel == true) {
+            cout << "Zeile: " << o + 1 << " wurde Verschlüsselt" << endl;
         }
     }
 
@@ -388,9 +416,11 @@ vector<int> encryptSingleThread(vector<int> &clear, vector<vector<vector<int>>> 
  * Verschlüsselt einen Klartext mit einem Public Key
  *
  * @category angriff
- * @param clear: Klartext als vector<int>
- * @param pKey: Public Key als vector<vector<vector<int>>>
+ * @param clear Klartext als vector<int>
+ * @param pKey Public Key als vector<vector<vector<int>>>
  * @return Chitext als vector<int>
+ *
+ * todo: weiter Kommentieren
  * */
 vector<int> encryptMultiThreadX4(vector<int> &clear, vector<vector<vector<int>>> &pKey) {
 
@@ -463,6 +493,10 @@ vector<int> encryptMultiThreadX4(vector<int> &clear, vector<vector<vector<int>>>
 
 /**
  * Erzeugt aus dem Klar-Geheim Kompromiss die Stufenmatrix
+ * @param clear Klartext Vektor
+ * @param chi Chitext Vektor
+ * @param l Anzahl der Bits die mit dem Key auf einem mal verschlüsselt werden können
+ * @return Gibt den Klar-Geheim Kompromiss als NTL Matrix nach dem Gauss Algorithmus zurück
  * */
 NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
 
@@ -515,6 +549,13 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
             }
         }
         n++;
+        if (consoleOutputLevel == true) {
+            cout << "Zeile: " << n << " des KGK wurde erzeugt" << endl;
+        }
+    }
+
+    if (consoleOutputLevel == true) {
+        cout << triangle << endl;
     }
 
     /*
@@ -524,6 +565,10 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
      * Der Unterschied ist das über der Stufenform mehr einsen stehen können
      * */
     NTL::gauss(triangle);
+
+    if (consoleOutputLevel == true) {
+        cout << triangle << endl;
+    }
 
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
@@ -538,7 +583,17 @@ NTL::mat_GF2 createTriangleMatrix(vector<int> &clear, vector<int> &chi, int l) {
 }
 
 /**
- * Lamda
+ * Lambda-Funktion die das erzeugen der Lösungsvektoren parallelisiert
+ *
+ * @param id Nummer des Threads
+ * @param freeVar Liste aller freien Variablen
+ * @param start Start Index des Threads im Vektor
+ * @param end End Index des Threads im Vektor
+ * @param rowMax Der maximal Wert an Zeilen die in der Matrix berücksichtigt werden müssen
+ * @param rowJump Gibt an in welchen Zeilen wie oft gesprungen werden muss
+ * @param gaussMatrix Die mit dem Gauss Algorithmus bearbeitete Matrix des Klar-Geheim Kompromisses
+ * @param spezLoes Vektor der alle errechneten speziellen Lösungen beinhaltet
+ * @returns spezielle Lösungen
  * */
 auto solveFreeVarDistributed = [](int id, vector<int> &freeVar, int start, int end, int rowMax, vector<int> &rowJump,
                                   NTL::mat_GF2 &gaussMatrix, vector<NTL::mat_GF2> &spezLoes) {
@@ -589,7 +644,12 @@ auto solveFreeVarDistributed = [](int id, vector<int> &freeVar, int start, int e
             }
             index--;
         }
-        //cout << vec << endl;
+        if (consoleOutputLevel == true) {
+            mtx.lock();
+            cout << "Thread " << id << " errechnete die  spezielle Lösung von x_" << freeVar[i] << endl;
+            mtx.unlock();
+        }
+
         spezLoes.push_back(vec);
     }
 
@@ -597,17 +657,19 @@ auto solveFreeVarDistributed = [](int id, vector<int> &freeVar, int start, int e
 
     long misec = chrono::duration_cast<chrono::microseconds>(ende - begin).count();
 
+    mtx.lock();
     cout << "\tThread " << id << " hat " << end - start << " spezielle Lösungen errechnet: \n\t\t"
          << (((misec / 1000) / 1000) / 60) % 60 << ":" << ((misec / 1000) / 1000) % 60 << ":"
          << (misec / 1000) % 1000
          << ":" << misec % 1000 << " [m:ss:ms:μm]\n" << endl;
+    mtx.unlock();
 };
 
 /**
  * Errechnet aus einer Gauß Matrix die speziellen Lösungen aller freien Variablen
  *
  * @category angriff
- * @param gaussMatrix: Eine Matrix die schon in der Stufenzeilenform ist wird erwartet
+ * @param gaussMatrix Eine Matrix die schon in der Stufenzeilenform ist wird erwartet
  * @return Verktor mit allen Speziellen Lösungen einer Gauss Matrix
  * */
 vector<NTL::mat_GF2> matrixAufrollenSingleThread(NTL::mat_GF2 &gaussMatrix) {
@@ -682,11 +744,13 @@ vector<NTL::mat_GF2> matrixAufrollenSingleThread(NTL::mat_GF2 &gaussMatrix) {
             expectedOne.at(0) -= 1;
             expectedOne.at(1) -= 1;
         }
-/*
-        cout << "Liste aller freien Variablen: " << endl;
-        for (int i = 0; i < freeVar.size(); i++) {
-            cout << "x_" << freeVar[i] + 1 << endl;
-        }*/
+
+        if (consoleOutputLevel == true) {
+            cout << "Liste aller freien Variablen: " << endl;
+            for (int i = 0; i < freeVar.size(); i++) {
+                cout << "x_" << freeVar[i] + 1 << endl;
+            }
+        }
 
         /*
          * Erzeugt alle speziellen Lösungen für die freien Variabeln
@@ -745,7 +809,9 @@ vector<NTL::mat_GF2> matrixAufrollenSingleThread(NTL::mat_GF2 &gaussMatrix) {
              * Speichert die Lösung in vector Und gibt sie auf die Konsole aus
              * */
             spezLoes.push_back(vec);
-            //cout << "\nLösung für x_" << freeVar[i] << " = 1\n" << vec << "\n" << endl;
+            if (consoleOutputLevel == true) {
+                cout << "\nLösung für x_" << freeVar[i] << " = 1\n" << vec << "\n" << endl;
+            }
         }
 
         chrono::steady_clock::time_point end = chrono::steady_clock::now();
@@ -765,7 +831,7 @@ vector<NTL::mat_GF2> matrixAufrollenSingleThread(NTL::mat_GF2 &gaussMatrix) {
  * Errechnet aus einer Gauß Matrix die speziellen Lösungen aller freien Variablen
  *
  * @category angriff
- * @param gaussMatrix: Eine Matrix die schon in der Stufenzeilenform ist wird erwartet
+ * @param gaussMatrix Eine Matrix die schon in der Stufenzeilenform ist wird erwartet
  * @return Verktor mit allen Speziellen Lösungen einer Gauss Matrix
  * */
 vector<NTL::mat_GF2> matrixAufrollenMultiThreadX4(NTL::mat_GF2 &gaussMatrix) {
@@ -916,9 +982,10 @@ vector<NTL::mat_GF2> matrixAufrollenMultiThreadX4(NTL::mat_GF2 &gaussMatrix) {
 /**
  * Erzeugt aus einem Vekor mit speziellen Lösungen eine Basis
  *
- * @param specialSolution: Der Vector mit allen speziellen Lösungen
- * @param breite: Wie viele Bits können auf einmal verschlüsselt werden
- * @param chi: Der urspünglich Abgefangene Chitext der Entschlüsselt werden soll
+ * @category angriff
+ * @param specialSolution Der Vector mit allen speziellen Lösungen
+ * @param breite Wie viele Bits können auf einmal verschlüsselt werden
+ * @param chi Der urspünglich Abgefangene Chitext der Entschlüsselt werden soll
  * @return Gibt die Basis der Speziellen Lösung nach Gauss zurück
  * */
 NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> &specialSolution, int breite, vector<int> &chi) {
@@ -944,7 +1011,6 @@ NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> &specialSolution, int breite, vect
 
         matrizen.push_back(mat);
         offset += breite;
-        //cout << mat << endl;
     }
 
     /*
@@ -1024,7 +1090,9 @@ NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> &specialSolution, int breite, vect
 
     NTL::gauss(ende);
 
-    //cout << ende << endl;
+    if (consoleOutputLevel == true) {
+        cout << ende << endl;
+    }
 
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
@@ -1042,17 +1110,18 @@ NTL::mat_GF2 createBasis(vector<NTL::mat_GF2> &specialSolution, int breite, vect
 /**
  * Steuert den Angriff und vereint die verschiedenen Methoden
  *
- * @param publicK: Public Key
- * @param clear: Klartext als Vector
- * @param chi: Chitext als Vector
+ * @category angriff
+ * @param publicK Public Key
+ * @param clear Klartext als Vector
+ * @param chi Chitext als Vector
  * */
-bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<int> &chi, bool multithread) {
+bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<int> &chi) {
 
     /*
      * Verschlüsselt den Klartext
      * */
     vector<int> chiText;
-    if (multithread == true) {
+    if (multiThread == true) {
         chiText = encryptMultiThreadX4(clear, publicK);
     } else {
         chiText = encryptSingleThread(clear, publicK);
@@ -1063,7 +1132,13 @@ bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<in
      * */
     NTL::mat_GF2 kgk = createTriangleMatrix(clear, chiText, publicK.size());
 
-    vector<NTL::mat_GF2> specialSolution = matrixAufrollenMultiThreadX4(kgk);
+    vector<NTL::mat_GF2> specialSolution;
+
+    if (multiThread == true) {
+        specialSolution = matrixAufrollenMultiThreadX4(kgk);
+    } else {
+        specialSolution = matrixAufrollenSingleThread(kgk);
+    }
 
     /*
      * Wenn es keine spezielle Lösung gibt ist etwas schief gelaufen
@@ -1136,6 +1211,9 @@ bool angriff(vector<vector<vector<int>>> &publicK, vector<int> &clear, vector<in
 
 /**
  * Hardgecodeter Beispielangriff d3
+ *
+ * @category ausfuehrten
+ * @bug Funkioniert seit dem einbauen des Multithreading nicht mehr
  * */
 void angriffD3() {
     string publicKey = "x_1*x_3 + x_2*x_3 + x_2,\n"
@@ -1151,16 +1229,19 @@ void angriffD3() {
 
     vector<int> chi = {1, 1, 1};
 
-    angriff(publicK, klartext, chi, false);
+    angriff(publicK, klartext, chi);
 }
 
 /**
  * Führt einen Angriff mit den Crypto Challenge Vorgaben aus dem Moodle Kurs durch.
  *
- * @param gruppe: Gruppennummer
- * @param mode: Modus der bestimmt wie viel Klartext erzeugt wird
+ * @category ausfuehrten
+ * @param gruppe Gruppennummer
+ * @param mode Modus der bestimmt wie viel Klartext erzeugt wird
  * */
-void angriffGruppeN(int gruppe, int mode, bool multiThread) {
+void angriffGruppeN(int gruppe) {
+
+    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
 
     /*
      * Nur Zahlen zwischen 0 und 15 sind zulässig
@@ -1173,15 +1254,19 @@ void angriffGruppeN(int gruppe, int mode, bool multiThread) {
         // Datei wird eingeleesen
         vector<string> input = readChallengeIn(file);
 
+        if (input.size() <= 0) {
+            return;
+        }
+
         // Der Public Key wird aufbereitet
         vector<vector<vector<int>>> publicK = createPublicKey(input.at(0));
 
         // Je nach Modus wird eine Warnung ausgegeben
-        if (mode == 1) {
+        if (performanceMode == 1) {
             cout << "Es wurde der Performance Modus eingestellt.\n"
                  << "Der Klar-Geheim Kompromiss liegt unter 2*n^2. \nEs kann sein das kein Ergebniss gefunden wird.\n"
                  << endl;
-        } else if (mode == 2) {
+        } else if (performanceMode == 2) {
             cout
                     << "Der Klar-Geheim Kompromiss beträgt nur eine Zeile. \nDieser Modus ist nicht für einen Angriff geeignet.\n"
                     << endl;
@@ -1190,37 +1275,57 @@ void angriffGruppeN(int gruppe, int mode, bool multiThread) {
         }
 
         // Es wird eine Klartext generiert
-        vector<int> clear = generateRandomClear(publicK.size(), mode);
+        vector<int> clear = generateRandomClear(publicK.size(), performanceMode);
 
         vector<int> chi = createVector(input.at(1), ',');
 
         // Der Angriff wird durchgeführt
-        angriff(publicK, clear, chi, multiThread);
+        angriff(publicK, clear, chi);
 
     } else {
         // Falls die Zahl nicht einer Gruppe zuzuorden ist
         cout << "Ein Angriff für die Gruppe " << gruppe
              << " existiert nicht.\n Bitte wähle eine Zahl im bereich von einschließlich 1 bis 14" << endl;
     }
+
+    chrono::steady_clock::time_point end = chrono::steady_clock::now();
+
+    //
+    // Ausgabe der Zeit die für die Berechnung benötigt wurde
+    //
+    long misec = chrono::duration_cast<chrono::microseconds>(end - begin).count();
+
+    cout << "\nGesamte benötigte Zeit: \n\t" << (((misec / 1000) / 1000) / 60) % 60 << ":"
+         << ((misec / 1000) / 1000) % 60 << ":"
+         << (misec / 1000) % 1000
+         << ":" << misec % 1000 << " [m:ss:ms:μm]" << endl;
 }
 
 /**
  * Führt einen Angriff auf einen beliebigen Public Key und Chitext, aus einer entsprechend formatierten Datei, aus
  *
- * @param file: Dateiname samt Endung
- * @param mode: Modus der bestimmt wie viel Klartext erzeugt wird
+ * @category ausfuehrten
+ * @param file Dateiname samt Endung
+ * @param mode Modus der bestimmt wie viel Klartext erzeugt wird
  * @return Gibt aus ob der Angriff erfolgreich durchgeführt wurde
  * */
-bool angriffDatei(string file, int mode, bool multiThread) {
+bool angriffDatei(string file) {
+
+    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
+
     // Ließt die Datei ein
     vector<string> input = readChallengeIn(file);
 
+    if (input.size() <= 0) {
+        return false;
+    }
+
     // Je nach Modus wird eine Warnung ausgegeben
-    if (mode == 1) {
+    if (performanceMode == 1) {
         cout << "Es wurde der Performance Modus eingestellt.\n"
              << "Der Klar-Geheim Kompromiss liegt unter 2*n^2. \nEs kann sein das kein Ergebniss gefunden wird.\n"
              << endl;
-    } else if (mode == 2) {
+    } else if (performanceMode == 2) {
         cout
                 << "Der Klar-Geheim Kompromiss beträgt nur eine Zeile. \nDieser Modus ist nicht für einen Angriff geeignet.\n"
                 << endl;
@@ -1232,18 +1337,32 @@ bool angriffDatei(string file, int mode, bool multiThread) {
      * Bereitet alles für den Angriff vor
      * */
     vector<vector<vector<int>>> publicK = createPublicKey(input.at(0));
-    vector<int> clear = generateRandomClear(publicK.size(), mode);
+    vector<int> clear = generateRandomClear(publicK.size(), performanceMode);
     vector<int> chi = createVector(input.at(1), ',');
+
+    bool res = angriff(publicK, clear, chi);
+
+    chrono::steady_clock::time_point end = chrono::steady_clock::now();
+
+    //
+    // Ausgabe der Zeit die für die Berechnung benötigt wurde
+    //
+    long misec = chrono::duration_cast<chrono::microseconds>(end - begin).count();
+
+    cout << "\nGesamte benötigte Zeit: \n\t" << (((misec / 1000) / 1000) / 60) % 60 << ":"
+         << ((misec / 1000) / 1000) % 60 << ":"
+         << (misec / 1000) % 1000
+         << ":" << misec % 1000 << " [m:ss:ms:μm]" << endl;
 
     /*
      * Führt den Angriff durch
      * */
-    return angriff(publicK, clear, chi, multiThread);
+    return res;
 }
 
 /*
  * -------------------------------------------------
- * Methoden die Ideen, Versuche, Übungen umsetzen
+ *  Methoden die Ideen, Versuche, Übungen umsetzen
  * -------------------------------------------------
  * */
 
@@ -1304,6 +1423,198 @@ void generateRandomChallenge(int dimension) {
     outfile << "]" << endl;
 }
 
+/*
+ * --------------------------------------------------
+ *  CLI Interface
+ * --------------------------------------------------
+ * */
+
+/**
+ * Erzeugt ein User Interface auf Konsolenebene
+ * */
+void cliUserInterface() {
+    bool runing = true;
+
+    string comand;
+
+    cout << "Crypto Challenge WS20\\21" << endl;
+    string input = "";
+
+    ausgabe:
+    cout
+            << "\nMöchten sie die erweiterte Ausgabe aktivieren?\nDiese Funktion zeigt die Zwischenergebnisse der Berechnungen an.\nDie Laufzeit wird aber immens verlängert.\n\t(y/n)\n>\t";
+    cin >> input;
+
+    if (input == "y" || input == "Y") {
+        consoleOutputLevel = true;
+    } else if (input == "n" || input == "N") {
+        consoleOutputLevel = false;
+    } else {
+        goto ausgabe;
+    }
+
+    multithreading:
+    input = "";
+    cout
+            << "\nMöchten Sie das Multithreading aktivieren?\nDie Laufzeit verringert sich durch die aktivierung\n(y/n)\n>\t";
+    cin >> input;
+
+    if (input == "y" || input == "Y") {
+        multiThread = true;
+    } else if (input == "n" || input == "N") {
+        multiThread = false;
+    } else {
+        goto multithreading;
+    }
+
+    perfom:
+    input = "";
+    cout
+            << "\nMöchten Sie den Performance Modus aktiviern?\nDer Performance Modus verringert die Laufzeit.\nEs kann aber sein dass das Programm keine Lösung findet\n\t(y/n)\n>\t";
+    cin >> input;
+
+    if (input == "y" || input == "Y") {
+        performanceMode = true;
+    } else if (input == "n" || input == "N") {
+        performanceMode = false;
+    } else {
+        goto perfom;
+    }
+
+    int i = -1;
+
+    while (runing) {
+
+        comand = "";
+
+        cout << "\nBitte geben Sie einen Befehl ein:\n>\t";
+        cin >> comand;
+
+        i = -1;
+        if (comand == "hilfe") {
+            i = 1;
+        } else if (comand == "help") {
+            i = 1;
+        } else if (comand == "?") {
+            i = 1;
+        } else if (comand == "gruppe") {
+            i = 2;
+        } else if (comand == "angriff") {
+            i = 3;
+        } else if (comand == "multithreading") {
+            i = 4;
+        } else if (comand == "performance") {
+            i = 5;
+        } else if (comand == "status") {
+            i = 6;
+        } else if (comand == "datei") {
+            i = 7;
+        } else if (comand == "ausgabe") {
+            i = 8;
+        } else if (comand == "exit") {
+            i = 9;
+        }
+
+        string n;
+        switch (i) {
+            case 1:
+                cout << "gruppe\n\tEine Gruppennummer im Bereich von einschließlich 1 bis 14 wird als Eingabe verlangt"
+                     << endl;
+                cout << "angriff\n\tEine Angriffnummer wird verlangt (3,5,7)" << endl;
+                cout << "datei\n\tEs muss ein Dateiname samt Endung eingegeben werden (z.B. Datei.txt)" << endl;
+                cout << "multithreading\n\tÄndert die Einstellung ob Multithreading aktiviert ist" << endl;
+                cout << "performance\n\tÄndert die Einstellung ob Performance Modus aktiviert ist" << endl;
+                cout << "ausgabe\n\tÄndert die Einstellung ob Performance Modus aktiviert ist" << endl;
+                cout << "status\n\tGibt die aktuellen Einstellungen aus" << endl;
+                cout << "exit\n\tSchließt die Anwendung" << endl;
+                break;
+            case 2:
+                cout << "Bitte Gruppennummer eingeben (1 bis 14)" << "\n>\t";
+                cin >> n;
+
+                if (stoi(n) >= 1 && stoi(n) <= 14) {
+                    angriffGruppeN(1);
+                } else {
+                    cout << "\tGruppennummer nicht bekannt" << endl;
+                }
+
+                break;
+            case 3:
+                cout << "Bitte Angriffnummer eingeben (3,5,7)" << "\n>\t";
+                cin >> n;
+
+                if (stoi(n) == 3) {
+                    angriffDatei("BeispielAngriffd3.txt");
+                } else if (stoi(n) == 5) {
+                    angriffDatei("BeispielAngriffd5.txt");
+                } else if (stoi(n) == 7) {
+                    angriffDatei("BeispielAngriffd7.txt");
+                } else {
+                    cout << "\tGruppennummer nicht bekannt" << endl;
+                }
+
+                break;
+            case 4:
+                cout << "Das Multithreading";
+                if (multiThread == true) {
+                    multiThread = false;
+                    cout << " wurde ausgeschaltet." << endl;
+                } else if (multiThread == false) {
+                    multiThread = true;
+                    cout << " wurde eingeschaltet." << endl;
+                }
+                break;
+            case 5:
+                cout << "Der Performance Modus";
+                if (performanceMode == true) {
+                    performanceMode = false;
+                    cout << " wurde ausgeschaltet." << endl;
+                } else if (performanceMode == false) {
+                    performanceMode = true;
+                    cout << " wurde eingeschaltet." << endl;
+                }
+                break;
+            case 6:
+                cout << "Diese Einstellungen sind gespeichert:" << endl;
+                cout << "\tAusgabe " << boolalpha << consoleOutputLevel << "" << endl;
+                cout << "\tMultiThreading " << boolalpha << multiThread << "" << endl;
+                cout << "\tPerformance Modus " << boolalpha << performanceMode << "" << endl;
+                break;
+            case 7:
+                cout << "Bitte einen Dateiname eingeben (z.B. Datei.txt)" << "\n>\t";
+                cin >> n;
+
+                angriffDatei(n);
+
+                break;
+            case 8:
+                cout << "Die Ausgabe";
+                if (consoleOutputLevel == true) {
+                    consoleOutputLevel = false;
+                    cout << " wurde ausgeschaltet." << endl;
+                } else if (consoleOutputLevel == false) {
+                    consoleOutputLevel = true;
+                    cout << " wurde eingeschaltet." << endl;
+                }
+                break;
+            case 9:
+                cout << "" << endl;
+                runing = false;
+                break;
+            default:
+                cout
+                        << "Der Befehl ist nicht bekannt. Die Hilfefunktion ist unter folgenden Befehlen zu erreichen.\n\thilfe\n\thelp\n\t?"
+                        << endl;
+                break;
+        }
+    }
+}
+
+/*
+ * --------------------------------------------------
+ * Main
+ * --------------------------------------------------
+ * */
 
 int main() {
     srand(time(0));
@@ -1312,9 +1623,10 @@ int main() {
      * Bei Bedarf muss der Pfad an ein anders System angepasst werden.
      * */
     // Windows-Subsystem für Linux
-    //glb_path = "/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
+    glb_path = "/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
     // Windows
-    glb_path = "C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
+    //glb_path = "C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
+    // Relativer Pfad
 
     // Start der Zeitmessung
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
@@ -1322,40 +1634,51 @@ int main() {
     /**
      * Der Mode gibt an wie viel Klar-Geheim Kompromiss verwendet werden soll
      *
-     * 0 = Normaler Modus: Wie in der Vorlesung besprochen (2*n^2) * n
-     * 1 = Performance Modus: Weniger als  beim "Normalen Modus" (n*n^2) Kann zu fehler führen
-     *
-     * Nicht zu verwenden:
-     * [2 = Eine Zeile (n) wird intern verwendet]
+     * false = Normaler Modus: Wie in der Vorlesung besprochen (2*n^2) * n
+     * true = Performance Modus: Weniger als  beim "Normalen Modus" (n*n^2) Kann zu Fehler führen
      * */
-    int mode = 1;
+    performanceMode = false;
+
+    /**
+     * Sollen die Einzelnen Schritte mit einer Außgabe versehen werden?
+     * Dies verlängter bei großen Matrizen die Laufzeit extrem.
+     * */
+    consoleOutputLevel = false;
+
+    /**
+     * Gibt an ob multithreading genutzt werden soll
+     * */
+    multiThread = false;
 
     /**
      * Jeder in Moodel zu verfügung gestellter Angriff kann hier durchgeführt werden
      * */
-    angriffGruppeN(1, mode, true);
+    //angriffGruppeN(1);
 
     /**
      * Theoretisch kann jeder richtig formatierte Datei eingelesen werden
      * */
-    //angriffDatei("BeispielAngriffd7.txt", mode, true);
+    //angriffDatei("BeispielAngriffd7.txt");
 
     /**
      * Exemplarisch ist hier einer der Beispielangriffe hardgecoded
      *
      * Kein mode da der Klartext vorgegeben war im Beispiel
+     *
+     * Zurzeit tut diese Art des Angriffes nicht mehr
      * */
     //angriffD3();
 
-    // Ende der Ausführung wird gespeichert
+    /**
+     * Erzeugt ein CLI User Interface das mehrere Aktionen pro Programmablauf ermöglicht
+     * */
+    cliUserInterface();
+
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
-    /**
-     * Ausgabe der Zeit die für die Berechnung benötigt wurde
-     * */
     long misec = chrono::duration_cast<chrono::microseconds>(end - begin).count();
 
-    cout << "\nGesamte benötigte Zeit: \n\t" << (((misec / 1000) / 1000) / 60) % 60 << ":"
+    cout << "\nZeit insgesamt: \n\t" << (((misec / 1000) / 1000) / 60) % 60 << ":"
          << ((misec / 1000) / 1000) % 60 << ":"
          << (misec / 1000) % 1000
          << ":" << misec % 1000 << " [m:ss:ms:μm]" << endl;

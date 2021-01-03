@@ -1,3 +1,6 @@
 /Zusatsmaterialien/Vorlesung/
 /cmake-build-debug-coverage/
 /cmake-build-debug/
+/cmake-build-release/
+/cmake-build-minsizerel/
+/cmake-build-relwithdebinfo/

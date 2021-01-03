@@ -117,20 +117,27 @@ Elemente über einer Stufe. Das ist in ihrer Lösung überflüssig!!!!
 [0 0 0 0 0 0 0 0 0]
 [0 0 0 0 0 0 0 0 0]
 Basis/Spezielle Lösungen des Lösungsraumes
-[   x_1     x_2     x_3
+[     x_1    x_2     x_3
     (1 0 0  0 0 1   1 1 1),
     (0 0 1  1 1 0   1 0 0)
 ]
  Basis der Relationen:
-x_1y_1+x_2y_3+x_3y_1+x_3y_2+x_3y_3
+ x_1*y_1+x_2*y_3+x_3*y_1+x_3*y_2+x_3*y_3
+ x_1*1+x_2*1+x_3*1+x_3*1+x_3*1
 
 x_1y_3+x_2y_1+x_2y_2+x_3y_1
 
- Chitext (1 1 1)
+
+Chitext (1 1 1)
+Chitext (y_1 y_2 y_3)
+
 Das Gleichungssystem nach einsetzen von c
 x_1+x_2+x_3=0
 
 x_1+x_3=0
+
+[1 1 1]
+[1 0 1]
 
 Die Matrix nach Anwendung von Gauss (der Algorithmus von Magma eliminert alle 
 Elemente über einer Stufe. Das ist in ihrer Lösung überflüssig!!!!

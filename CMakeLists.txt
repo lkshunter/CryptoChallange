@@ -3,7 +3,7 @@ project(CryptoChallange)
 
 set(CMAKE_CXX_STANDARD 14)
 
-# HIer werden die .h-Dateien von NTl angelegt
+# Hier werden die .h-Dateien von NTl angelegt
 include_directories("./lib/WinNTL-11_4_3/include")
 
 file(GLOB_RECURSE NTL_HEADER_LIST CONFIGURE_DEPENDS ${CryptoChallange_SOURCE_DIR}/lib/WinNTL-11_4_3/include/*.h)
