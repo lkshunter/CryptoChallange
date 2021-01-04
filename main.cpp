@@ -1533,7 +1533,7 @@ void cliUserInterface() {
                 cin >> n;
 
                 if (stoi(n) >= 1 && stoi(n) <= 14) {
-                    angriffGruppeN(1);
+                    angriffGruppeN(stoi(n));
                 } else {
                     cout << "\tGruppennummer nicht bekannt" << endl;
                 }
@@ -1626,7 +1626,7 @@ int main() {
     glb_path = "/mnt/c/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
     // Windows
     //glb_path = "C:/Users/Lukas/CLionProjects/CryptoChallange/Zusatsmaterialien/Aufgabe/";
-    // Relativer Pfad
+
 
     // Start der Zeitmessung
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
