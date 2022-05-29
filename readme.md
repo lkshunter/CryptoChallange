@@ -4,7 +4,6 @@
 * Studiengang: Informatik
 * Vertiefungsrichtung: IT-Security
 * Fach: Spezielle Verfahren der IT-Sicherheit
-* Autor: Lukas Hagen
 
 ## Installation
 
